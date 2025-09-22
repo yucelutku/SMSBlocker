@@ -29,7 +29,15 @@ Please create the complete implementation with:
 3. Turkish localization support
 4. KVKV compliance considerations
 
-Current project structure: [paste current folder structure]
+AUTO-COMPLETION WORKFLOW:
+1. Implement the requested feature completely
+2. Test implementation logic for common issues
+3. Generate conventional commit message following format: "feat/fix/ui(scope): description"
+4. Provide exact git commands: git add . && git commit -m "message"
+5. Summarize what was implemented and current project status
+6. Suggest the next logical development step
+
+Complete this full workflow automatically - minimize my manual work.
 ```
 
 ### 2. 📱 **SMS OPERATIONS AGENT** - SMS işlemleri
@@ -53,7 +61,15 @@ Requirements:
 
 Keywords to detect: bahis, kumar, bet, casino, bonus, freespin, çevrim, yatır, kazanç
 
-Please implement with proper security and performance considerations.
+AUTO-COMPLETION WORKFLOW:
+1. Implement SMS operations with proper Android 13 compliance
+2. Add error handling and permission checks
+3. Generate conventional commit message
+4. Provide exact git commands for commit
+5. Summarize implementation and test status
+6. Suggest next SMS-related development step
+
+Complete this workflow automatically with minimal manual intervention.
 ```
 
 ### 3. 🎨 **UI/UX AGENT** - Interface tasarımı
@@ -75,7 +91,15 @@ Design Requirements:
 Screen: [MainActivity / SettingsActivity / etc.]
 Context: [User needs to see SMS messages / manage blocked numbers / etc.]
 
-Please create XML layouts and corresponding Java code with proper view binding.
+AUTO-COMPLETION WORKFLOW:
+1. Create XML layouts and corresponding Java code with view binding
+2. Implement Material Design 3 components with proper styling
+3. Test dark/light theme compatibility
+4. Generate commit message with ui(scope): format
+5. Provide git commands for immediate commit
+6. Status summary and next UI development suggestion
+
+Execute complete workflow - optimize for minimal manual work.
 ```
 
 ### 4. 🔒 **PERMISSIONS AGENT** - İzin yönetimi
@@ -96,7 +120,15 @@ Critical Requirements:
 SMS Permissions needed: READ_SMS, WRITE_SMS, RECEIVE_SMS, SEND_SMS
 Additional: POST_NOTIFICATIONS for Android 13
 
-Please implement proper permission flow with educational dialogs.
+AUTO-COMPLETION WORKFLOW:
+1. Implement proper permission flow with educational dialogs
+2. Add Android 13 specific handling and edge cases
+3. Test permission denial scenarios
+4. Generate conventional commit: feat(permissions): description
+5. Execute git add . && git commit commands
+6. Status update and next permission-related task suggestion
+
+Fully automate this workflow - no manual steps required.
 ```
 
 ### 5. 🗃️ **DATA AGENT** - Database ve data management
@@ -166,6 +198,16 @@ Dependencies: [what needs to be implemented first]
 
 Create minimal working implementation that I can iterate on.
 Priority: working code > perfect code (we'll refine later)
+
+AUTO-COMPLETION WORKFLOW:
+1. Implement minimal working version of requested feature
+2. Ensure basic functionality works without crashes
+3. Generate quick commit message: feat(scope): add [feature] - minimal implementation
+4. Provide git commands for immediate commit
+5. Brief status: what works, what needs refinement
+6. Suggest next iteration or new feature
+
+Execute full workflow automatically.
 ```
 
 3. **🚀 ENHANCEMENT ITERATIONS**
@@ -181,7 +223,15 @@ Improvements needed:
 - [ ] Performance optimization
 - [ ] Turkish localization
 
-Apply improvements incrementally.
+AUTO-COMPLETION WORKFLOW:
+1. Apply improvements incrementally to existing code
+2. Test enhanced functionality
+3. Generate refactor commit: refactor(scope): improve [aspect]
+4. Execute git add . && git commit with generated message
+5. List improvements applied and remaining tasks
+6. Suggest next enhancement priority
+
+Complete workflow automatically - minimal manual intervention.
 ```
 
 ## 📋 Quick Commands
@@ -258,7 +308,7 @@ Ensure implementation works well with Samsung's modifications.
 1. **Always reference CLAUDE.md context** at the start of sessions
 2. **Use specific prompts** rather than generic "help me code"
 3. **Iterate incrementally** - get working code first, optimize later
-4. **Test on multiple Android versions** during development
+4. **Test on multiple Android versions** during development  
 5. **Keep sessions focused** - one major feature per session
 6. **Save context** between sessions by summarizing current state
 7. **Commit after each working feature** - use git workflow below
@@ -404,7 +454,7 @@ I need to implement [specific feature] following this pattern."
 
 ### **Documentation-Driven Development Benefits:**
 - ✅ **Platform Independent** - works with any development environment
-- ✅ **AI Tool Agnostic** - usable with any AI coding assistant
+- ✅ **AI Tool Agnostic** - usable with any AI coding assistant  
 - ✅ **Self-Sufficient** - complete implementation guidance
 - ✅ **Future-Proof** - documentation doesn't expire like usage limits
 - ✅ **Team Ready** - other developers can join using same docs
