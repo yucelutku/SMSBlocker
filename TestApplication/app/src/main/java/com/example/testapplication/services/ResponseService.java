@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.IBinder;
 import android.telephony.SmsManager;
+// import android.telecom.TelecomManager; // Not needed - using custom action
 import android.util.Log;
 
 import androidx.annotation.Nullable;
@@ -15,6 +16,9 @@ import java.util.ArrayList;
 
 public class ResponseService extends Service {
     private static final String TAG = "ResponseService";
+    
+    // Custom action for respond via message functionality
+    public static final String ACTION_RESPOND_VIA_MESSAGE = "com.example.testapplication.RESPOND_VIA_MESSAGE";
 
     @Nullable
     @Override
@@ -28,7 +32,7 @@ public class ResponseService extends Service {
         Log.d(TAG, "ResponseService started with action: " + 
               (intent != null ? intent.getAction() : "null"));
 
-        if (intent != null && Intent.ACTION_RESPOND_VIA_MESSAGE.equals(intent.getAction())) {
+        if (intent != null && ACTION_RESPOND_VIA_MESSAGE.equals(intent.getAction())) {
             handleRespondViaMessage(intent);
         } else {
             Log.w(TAG, "Unknown or null intent action");

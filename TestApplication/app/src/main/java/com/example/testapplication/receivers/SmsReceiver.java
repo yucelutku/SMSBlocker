@@ -8,7 +8,8 @@ import android.provider.Telephony;
 import android.telephony.SmsMessage;
 import android.util.Log;
 
-import com.example.testapplication.models.SmsMessage as AppSmsMessage;
+// Import not needed - using fully qualified name to avoid conflict with android.telephony.SmsMessage
+// import com.example.testapplication.models.SmsMessage;
 import com.example.testapplication.repositories.SmsRepository;
 import com.example.testapplication.utils.SpamDetector;
 

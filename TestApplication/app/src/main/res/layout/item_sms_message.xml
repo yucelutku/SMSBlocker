@@ -60,7 +60,7 @@
                 app:chipBackgroundColor="?attr/colorError"
                 app:chipCornerRadius="16dp"
                 app:chipMinHeight="28dp"
-                app:textColor="?attr/colorOnError"
+                android:textColor="?attr/colorOnError"
                 tools:visibility="visible" />
 
             <!-- Delete Button -->
