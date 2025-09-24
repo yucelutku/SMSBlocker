@@ -133,7 +133,17 @@ public class SmsHelper {
 
     public static boolean deleteSmsMessage(Context context, long messageId) {
         if (!PermissionHelper.hasSmsPermissions(context)) {
-            Log.w(TAG, "SMS permissions not granted for deletion");
+            Log.e(TAG, "[DELETE] SMS permissions not granted for deletion");
+            return false;
+        }
+
+        if (!PermissionHelper.hasWriteSmsPermission(context)) {
+            Log.e(TAG, "[DELETE] WRITE_SMS permission not granted");
+            return false;
+        }
+
+        if (!PermissionHelper.isDefaultSmsApp(context)) {
+            Log.e(TAG, "[DELETE] App is not default SMS app - deletion will fail on Android 4.4+");
             return false;
         }
 
@@ -141,31 +151,46 @@ public class SmsHelper {
             ContentResolver resolver = context.getContentResolver();
             Uri deleteUri = Uri.parse("content://sms/" + messageId);
             
+            Log.d(TAG, "[DELETE] Attempting to delete SMS message ID: " + messageId + " from URI: " + deleteUri);
+            
             int deletedRows = resolver.delete(deleteUri, null, null);
             
-            Log.d(TAG, "Deleted SMS message " + messageId + ", rows affected: " + deletedRows);
-            return deletedRows > 0;
+            if (deletedRows > 0) {
+                Log.i(TAG, "[DELETE] Successfully deleted SMS message " + messageId + ", rows affected: " + deletedRows);
+                return true;
+            } else {
+                Log.w(TAG, "[DELETE] No rows deleted for message ID: " + messageId);
+                return false;
+            }
             
         } catch (SecurityException e) {
-            Log.e(TAG, "Security exception deleting SMS: " + e.getMessage());
+            Log.e(TAG, "[DELETE] Security exception deleting SMS " + messageId + ": " + e.getMessage(), e);
             return false;
         } catch (Exception e) {
-            Log.e(TAG, "Error deleting SMS: " + e.getMessage());
+            Log.e(TAG, "[DELETE] Error deleting SMS " + messageId + ": " + e.getMessage(), e);
             return false;
         }
     }
 
     public static int deleteSpamMessages(Context context) {
+        Log.d(TAG, "[DELETE_SPAM] Starting spam message deletion process");
+        
         List<SmsMessage> spamMessages = getSpamMessages(context);
+        Log.d(TAG, "[DELETE_SPAM] Found " + spamMessages.size() + " spam messages to delete");
+        
         int deletedCount = 0;
         
         for (SmsMessage message : spamMessages) {
+            Log.d(TAG, "[DELETE_SPAM] Attempting to delete spam message ID: " + message.id + " from: " + message.address);
             if (deleteSmsMessage(context, message.id)) {
                 deletedCount++;
+                Log.d(TAG, "[DELETE_SPAM] Successfully deleted message ID: " + message.id);
+            } else {
+                Log.w(TAG, "[DELETE_SPAM] Failed to delete message ID: " + message.id);
             }
         }
         
-        Log.d(TAG, "Deleted " + deletedCount + " spam messages");
+        Log.i(TAG, "[DELETE_SPAM] Deleted " + deletedCount + " out of " + spamMessages.size() + " spam messages");
         return deletedCount;
     }
 

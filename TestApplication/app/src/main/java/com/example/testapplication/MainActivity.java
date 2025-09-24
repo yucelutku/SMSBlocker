@@ -27,6 +27,7 @@ public class MainActivity extends AppCompatActivity {
     private SmsViewModel smsViewModel;
     private SmsListAdapter smsAdapter;
     private static final int SMS_PERMISSION_REQUEST_CODE = 100;
+    private static final int DEFAULT_SMS_APP_REQUEST_CODE = 101;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -174,9 +175,22 @@ public class MainActivity extends AppCompatActivity {
     private void requestSmsPermissions() {
         if (!PermissionHelper.hasSmsPermissions(this)) {
             ActivityCompat.requestPermissions(this, PermissionHelper.SMS_PERMISSIONS, SMS_PERMISSION_REQUEST_CODE);
+        } else if (!PermissionHelper.isDefaultSmsApp(this)) {
+            showDefaultSmsAppDialog();
         } else {
             showToast("SMS permissions already granted");
         }
+    }
+
+    private void showDefaultSmsAppDialog() {
+        new AlertDialog.Builder(this)
+                .setTitle("Default SMS App Required")
+                .setMessage("To delete SMS messages, this app needs to be set as your default SMS app. You can change it back later.")
+                .setPositiveButton("Set as Default", (dialog, which) -> {
+                    PermissionHelper.requestDefaultSmsApp(this, DEFAULT_SMS_APP_REQUEST_CODE);
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
     }
 
     @Override
@@ -194,12 +208,31 @@ public class MainActivity extends AppCompatActivity {
             }
             
             if (allPermissionsGranted) {
-                updateProtectionStatus(true);
-                smsViewModel.refreshData(); // Load SMS data after permissions granted
-                showToast("SMS permissions granted! Protection enabled.");
+                if (!PermissionHelper.isDefaultSmsApp(this)) {
+                    showDefaultSmsAppDialog();
+                } else {
+                    updateProtectionStatus(true);
+                    smsViewModel.refreshData();
+                    showToast("SMS permissions granted! Protection enabled.");
+                }
             } else {
                 updateProtectionStatus(false);
                 showToast("SMS permissions are required for protection features.");
+            }
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, android.content.Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        
+        if (requestCode == DEFAULT_SMS_APP_REQUEST_CODE) {
+            if (PermissionHelper.isDefaultSmsApp(this)) {
+                updateProtectionStatus(true);
+                smsViewModel.refreshData();
+                showToast("App is now default SMS app. Full functionality enabled.");
+            } else {
+                showToast("Default SMS app not set. SMS deletion will not work.");
             }
         }
     }
