@@ -146,27 +146,16 @@ public class SmsRepository {
 
     // Message operations
     public void deleteMessage(long messageId, RepositoryCallback<Boolean> callback) {
-        android.util.Log.d(TAG, "[REPO] Delete message request received for ID: " + messageId);
-        
         executor.execute(() -> {
             try {
-                android.util.Log.d(TAG, "[REPO] Executing delete on background thread for message ID: " + messageId);
-                
                 boolean success = SmsHelper.deleteSmsMessage(context, messageId);
-                
-                android.util.Log.d(TAG, "[REPO] Delete operation result: " + success + " for message ID: " + messageId);
-                
                 postCallback(callback, success);
                 
                 if (success) {
-                    android.util.Log.i(TAG, "[REPO] Deletion successful, refreshing all data");
                     refreshAllData();
-                } else {
-                    android.util.Log.w(TAG, "[REPO] Deletion failed for message ID: " + messageId);
                 }
-                
             } catch (Exception e) {
-                android.util.Log.e(TAG, "[REPO] Exception during delete: " + e.getMessage(), e);
+                android.util.Log.e(TAG, "Delete failed: " + e.getMessage(), e);
                 postError("Failed to delete message: " + e.getMessage());
                 postCallback(callback, false);
             }

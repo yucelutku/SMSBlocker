@@ -45,6 +45,7 @@ public class MainActivity extends AppCompatActivity {
         setupToolbar();
         setupRecyclerView();
         setupUI();
+        setupFilterChips();
         setupObservers();
         setupAutoRefresh();
         checkPermissions();
@@ -57,7 +58,6 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onChange(boolean selfChange) {
                 super.onChange(selfChange);
-                android.util.Log.d("MainActivity", "[SMS_OBSERVER] SMS content changed, refreshing list");
                 if (smsViewModel != null) {
                     smsViewModel.refreshData();
                 }
@@ -70,9 +70,8 @@ public class MainActivity extends AppCompatActivity {
                 true,
                 smsContentObserver
             );
-            android.util.Log.d("MainActivity", "[SMS_OBSERVER] Registered SMS content observer");
         } catch (Exception e) {
-            android.util.Log.e("MainActivity", "[SMS_OBSERVER] Failed to register observer", e);
+            android.util.Log.e("MainActivity", "Failed to register SMS observer", e);
         }
         
         startPermissionMonitoring();
@@ -126,6 +125,29 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private void setupFilterChips() {
+        binding.filterChipGroup.setOnCheckedStateChangeListener((group, checkedIds) -> {
+            if (checkedIds.isEmpty()) {
+                return;
+            }
+            
+            int checkedId = checkedIds.get(0);
+            SmsViewModel.SmsFilter filter;
+            
+            if (checkedId == binding.filterAllChip.getId()) {
+                filter = SmsViewModel.SmsFilter.ALL;
+            } else if (checkedId == binding.filterSpamChip.getId()) {
+                filter = SmsViewModel.SmsFilter.SPAM_ONLY;
+            } else if (checkedId == binding.filterNormalChip.getId()) {
+                filter = SmsViewModel.SmsFilter.NORMAL_ONLY;
+            } else {
+                return;
+            }
+            
+            smsViewModel.setFilter(filter);
+        });
+    }
+    
     private void setupUI() {
         binding.enableProtectionButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -161,24 +183,13 @@ public class MainActivity extends AppCompatActivity {
         binding.fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (PermissionHelper.hasSmsPermissions(MainActivity.this)) {
-                    smsViewModel.deleteAllSpamMessages(deletedCount -> {
-                        if (deletedCount > 0) {
-                            showToast("🗑️ " + deletedCount + " spam mesaj silindi");
-                            refreshData();
-                        } else {
-                            showToast("Silinecek spam mesaj yok");
-                        }
-                    });
-                } else {
-                    showToast("Ayarlar - Yakında!");
-                }
+                Intent intent = new Intent(MainActivity.this, KeywordSettingsActivity.class);
+                startActivity(intent);
             }
         });
     }
 
     private void refreshData() {
-        android.util.Log.d("MainActivity", "[REFRESH] Manual refresh triggered");
         if (smsViewModel != null) {
             smsViewModel.refreshData();
         }
@@ -208,8 +219,8 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // Observe SMS messages for RecyclerView
-        smsViewModel.getAllMessages().observe(this, messages -> {
+        // Observe filtered SMS messages for RecyclerView
+        smsViewModel.getFilteredMessages().observe(this, messages -> {
             if (messages != null) {
                 smsAdapter.submitList(messages);
                 updateEmptyState(messages.isEmpty());
@@ -229,39 +240,23 @@ public class MainActivity extends AppCompatActivity {
             updateProtectionStatus(true);
             smsViewModel.refreshData();
             
-            if (!com.example.testapplication.utils.ContactsHelper.hasContactsPermission(this)) {
-                android.util.Log.d("MainActivity", "[PERM_CHECK] SMS granted but contacts permission missing");
-            }
         } else {
             updateProtectionStatus(false);
         }
     }
 
     private void requestSmsPermissions() {
-        android.util.Log.d("MainActivity", "[PERM_REQUEST] Permission request initiated");
-        
         if (!PermissionHelper.hasSmsPermissions(this)) {
-            android.util.Log.i("MainActivity", "[PERM_REQUEST] SMS permissions not granted, requesting...");
-            
             showToast("📱 Requesting SMS permissions...");
-            
             ActivityCompat.requestPermissions(this, PermissionHelper.SMS_PERMISSIONS, SMS_PERMISSION_REQUEST_CODE);
-            
-            android.util.Log.d("MainActivity", "[PERM_REQUEST] Permission dialog launched");
-            
         } else if (!PermissionHelper.isDefaultSmsApp(this)) {
-            android.util.Log.i("MainActivity", "[PERM_REQUEST] SMS permissions granted, but not default SMS app");
             showDefaultSmsAppDialog();
-            
         } else {
-            android.util.Log.i("MainActivity", "[PERM_REQUEST] All permissions granted and default SMS app set");
             showToast("✓ SMS permissions already granted");
         }
     }
 
     private void showDefaultSmsAppDialog() {
-        android.util.Log.d("MainActivity", "[DEFAULT_APP_DIALOG] Showing improved default SMS app dialog");
-        
         new AlertDialog.Builder(this)
                 .setTitle("SMS Uygulaması Olarak Ayarla")
                 .setMessage("SMS silme özelliği için bu uygulamanın varsayılan SMS uygulaması olması gerekiyor.\n\n" +
@@ -269,47 +264,28 @@ public class MainActivity extends AppCompatActivity {
                            "1. 'SMS uygulaması' seçeneğine dokunun\n" +
                            "2. 'TestApplication' ı seçin\n\n" +
                            "Not: İstediğiniz zaman eski SMS uygulamanıza geri dönebilirsiniz.")
-                .setPositiveButton("Ayarları Aç", (dialog, which) -> {
-                    android.util.Log.i("MainActivity", "[DEFAULT_APP_DIALOG] Opening SMS app settings directly");
-                    openSmsAppSettings();
-                })
-                .setNegativeButton("İptal", (dialog, which) -> {
-                    android.util.Log.w("MainActivity", "[DEFAULT_APP_DIALOG] User cancelled");
-                    showToast("⚠️ SMS silme özelliği varsayılan uygulama olmadan çalışmaz");
-                })
+                .setPositiveButton("Ayarları Aç", (dialog, which) -> openSmsAppSettings())
+                .setNegativeButton("İptal", (dialog, which) -> showToast("⚠️ SMS silme özelliği varsayılan uygulama olmadan çalışmaz"))
                 .setCancelable(false)
                 .show();
     }
 
     private void openSmsAppSettings() {
-        android.util.Log.d("MainActivity", "[SMS_SETTINGS] Attempting to open SMS app settings");
-        
         try {
             Intent intent = new Intent(android.provider.Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS);
             startActivityForResult(intent, DEFAULT_SMS_APP_REQUEST_CODE);
-            
-            android.util.Log.i("MainActivity", "[SMS_SETTINGS] Opened default apps settings");
             showToast("📱 Ayarlar açıldı - SMS uygulaması seçeneğini bulun");
-            
         } catch (android.content.ActivityNotFoundException e) {
-            android.util.Log.w("MainActivity", "[SMS_SETTINGS] Default apps settings not available, trying alternative");
-            
             try {
                 Intent intent = new Intent(android.provider.Settings.ACTION_SETTINGS);
                 startActivityForResult(intent, DEFAULT_SMS_APP_REQUEST_CODE);
-                
-                android.util.Log.i("MainActivity", "[SMS_SETTINGS] Opened general settings");
                 showToast("⚙️ Ayarlar > Uygulamalar > Varsayılan uygulamalar > SMS uygulaması");
-                
             } catch (Exception e2) {
-                android.util.Log.e("MainActivity", "[SMS_SETTINGS] Failed to open settings, falling back", e2);
                 
                 PermissionHelper.requestDefaultSmsApp(this, DEFAULT_SMS_APP_REQUEST_CODE);
                 showToast("📲 SMS uygulama seçicisi açılıyor...");
             }
         } catch (Exception e) {
-            android.util.Log.e("MainActivity", "[SMS_SETTINGS] Unexpected error opening settings", e);
-            
             PermissionHelper.requestDefaultSmsApp(this, DEFAULT_SMS_APP_REQUEST_CODE);
             showToast("📲 SMS uygulama seçicisi açılıyor...");
         }
@@ -321,44 +297,32 @@ public class MainActivity extends AppCompatActivity {
         
         if (requestCode == CONTACTS_PERMISSION_REQUEST_CODE) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                android.util.Log.i("MainActivity", "[CONTACTS_PERM] Contacts permission granted");
                 showToast("✓ Kişi isimleri gösterilecek");
                 smsViewModel.refreshData();
             } else {
-                android.util.Log.w("MainActivity", "[CONTACTS_PERM] Contacts permission denied");
                 showToast("Telefon numaraları gösterilecek");
             }
             finalizeSetup();
         } else if (requestCode == SMS_PERMISSION_REQUEST_CODE) {
-            android.util.Log.d("MainActivity", "[PERM_RESULT] Permission request result received");
-            android.util.Log.d("MainActivity", "[PERM_RESULT] Permissions count: " + permissions.length);
-            
             boolean allPermissionsGranted = true;
             java.util.List<String> deniedPermissions = new java.util.ArrayList<>();
             
             for (int i = 0; i < permissions.length; i++) {
-                boolean granted = grantResults[i] == PackageManager.PERMISSION_GRANTED;
-                android.util.Log.d("MainActivity", "[PERM_RESULT] " + permissions[i] + ": " + (granted ? "GRANTED" : "DENIED"));
-                
-                if (!granted) {
+                if (grantResults[i] != PackageManager.PERMISSION_GRANTED) {
                     allPermissionsGranted = false;
                     deniedPermissions.add(permissions[i]);
                 }
             }
             
             if (allPermissionsGranted) {
-                android.util.Log.i("MainActivity", "[PERM_RESULT] ✓ All SMS permissions granted successfully");
                 showToast("✓ SMS izinleri verildi!");
                 
                 if (!PermissionHelper.isDefaultSmsApp(this)) {
-                    android.util.Log.i("MainActivity", "[PERM_RESULT] Proceeding to default SMS app request");
                     showDefaultSmsAppDialog();
                 } else {
-                    android.util.Log.i("MainActivity", "[PERM_RESULT] Already default SMS app, requesting contacts");
                     requestContactsPermission();
                 }
             } else {
-                android.util.Log.e("MainActivity", "[PERM_RESULT] ✗ Some permissions denied: " + deniedPermissions);
                 updateProtectionStatus(false);
                 
                 String deniedList = String.join(", ", deniedPermissions);
@@ -381,26 +345,18 @@ public class MainActivity extends AppCompatActivity {
         super.onActivityResult(requestCode, resultCode, data);
         
         if (requestCode == DEFAULT_SMS_APP_REQUEST_CODE) {
-            android.util.Log.d("MainActivity", "[DEFAULT_RESULT] onActivityResult called for default SMS app request");
-            android.util.Log.d("MainActivity", "[DEFAULT_RESULT] Result code: " + resultCode);
-            
             new android.os.Handler().postDelayed(() -> {
                 boolean isDefault = PermissionHelper.isDefaultSmsApp(this);
-                android.util.Log.d("MainActivity", "[DEFAULT_RESULT] Checked default status (after delay): " + isDefault);
                 
                 if (isDefault) {
-                    android.util.Log.i("MainActivity", "[DEFAULT_RESULT] ✓ Successfully became default SMS app");
                     updateProtectionStatus(true);
                     smsViewModel.refreshData();
                     showToast("✓ App is now default SMS app. Full functionality enabled!");
                     requestContactsPermission();
                 } else {
-                    android.util.Log.w("MainActivity", "[DEFAULT_RESULT] ✗ Not default SMS app after selection");
-                    
                     String currentDefault = "";
                     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
                         currentDefault = android.provider.Telephony.Sms.getDefaultSmsPackage(this);
-                        android.util.Log.w("MainActivity", "[DEFAULT_RESULT] Current default SMS app: " + currentDefault);
                     }
                     
                     showToast("✗ Varsayılan SMS uygulaması ayarlanmadı");
@@ -420,8 +376,6 @@ public class MainActivity extends AppCompatActivity {
 
     private void requestContactsPermission() {
         if (!com.example.testapplication.utils.ContactsHelper.hasContactsPermission(this)) {
-            android.util.Log.d("MainActivity", "[CONTACTS_PERM] Requesting contacts permission");
-            
             new AlertDialog.Builder(this)
                     .setTitle("Kişi İsimleri")
                     .setMessage("SMS listesinde telefon numaraları yerine kişi isimlerini görmek ister misiniz?\n\n" +
@@ -431,13 +385,9 @@ public class MainActivity extends AppCompatActivity {
                             new String[]{Manifest.permission.READ_CONTACTS}, 
                             CONTACTS_PERMISSION_REQUEST_CODE);
                     })
-                    .setNegativeButton("Hayır", (dialog, which) -> {
-                        android.util.Log.d("MainActivity", "[CONTACTS_PERM] User declined contacts permission");
-                        finalizeSetup();
-                    })
+                    .setNegativeButton("Hayır", (dialog, which) -> finalizeSetup())
                     .show();
         } else {
-            android.util.Log.d("MainActivity", "[CONTACTS_PERM] Contacts permission already granted");
             finalizeSetup();
         }
     }
@@ -521,15 +471,12 @@ public class MainActivity extends AppCompatActivity {
         smsViewModel.deleteMessage(message.id, success -> {
             if (success) {
                 showToast("✓ Message deleted successfully");
-                android.util.Log.i("MainActivity", "[UI] Delete SUCCESS for message ID: " + message.id);
-                smsViewModel.refreshData();
             } else {
                 String errorMsg = "Failed to delete message";
                 if (!PermissionHelper.isDefaultSmsApp(this)) {
                     errorMsg += ": Not default SMS app";
                 }
                 showToast("✗ " + errorMsg);
-                android.util.Log.e("MainActivity", "[UI] Delete FAILED for message ID: " + message.id);
             }
         });
     }
@@ -571,9 +518,8 @@ public class MainActivity extends AppCompatActivity {
         if (smsContentObserver != null) {
             try {
                 getContentResolver().unregisterContentObserver(smsContentObserver);
-                android.util.Log.d("MainActivity", "[SMS_OBSERVER] Unregistered SMS content observer");
             } catch (Exception e) {
-                android.util.Log.e("MainActivity", "[SMS_OBSERVER] Error unregistering observer", e);
+                android.util.Log.e("MainActivity", "Error unregistering SMS observer", e);
             }
         }
         

@@ -6,14 +6,23 @@ import androidx.annotation.NonNull;
 import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MediatorLiveData;
+import androidx.lifecycle.MutableLiveData;
 
 import com.example.testapplication.models.SmsMessage;
 import com.example.testapplication.repositories.SmsRepository;
 import com.example.testapplication.utils.SmsHelper;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class SmsViewModel extends AndroidViewModel {
+    
+    public enum SmsFilter {
+        ALL,
+        SPAM_ONLY,
+        NORMAL_ONLY
+    }
+    
     private final SmsRepository repository;
     
     // LiveData observables
@@ -27,6 +36,10 @@ public class SmsViewModel extends AndroidViewModel {
     // Computed LiveData
     private final MediatorLiveData<String> statusText;
     private final MediatorLiveData<Boolean> hasData;
+    
+    // Filter LiveData
+    private final MutableLiveData<SmsFilter> currentFilter;
+    private final MediatorLiveData<List<SmsMessage>> filteredMessages;
 
     public SmsViewModel(@NonNull Application application) {
         super(application);
@@ -45,7 +58,12 @@ public class SmsViewModel extends AndroidViewModel {
         statusText = new MediatorLiveData<>();
         hasData = new MediatorLiveData<>();
         
+        // Setup filter LiveData
+        currentFilter = new MutableLiveData<>(SmsFilter.ALL);
+        filteredMessages = new MediatorLiveData<>();
+        
         setupComputedLiveData();
+        setupFilteredMessages();
         
         // Load initial data
         refreshData();
@@ -60,6 +78,45 @@ public class SmsViewModel extends AndroidViewModel {
         // Has data indicator
         hasData.addSource(allMessages, messages -> 
             hasData.setValue(messages != null && !messages.isEmpty()));
+    }
+    
+    private void setupFilteredMessages() {
+        filteredMessages.addSource(allMessages, messages -> applyFilter());
+        filteredMessages.addSource(currentFilter, filter -> applyFilter());
+    }
+    
+    private void applyFilter() {
+        List<SmsMessage> messages = allMessages.getValue();
+        SmsFilter filter = currentFilter.getValue();
+        
+        if (messages == null || filter == null) {
+            filteredMessages.setValue(null);
+            return;
+        }
+        
+        List<SmsMessage> result = new ArrayList<>();
+        
+        switch (filter) {
+            case ALL:
+                result = messages;
+                break;
+            case SPAM_ONLY:
+                for (SmsMessage msg : messages) {
+                    if (msg.isSpam) {
+                        result.add(msg);
+                    }
+                }
+                break;
+            case NORMAL_ONLY:
+                for (SmsMessage msg : messages) {
+                    if (!msg.isSpam) {
+                        result.add(msg);
+                    }
+                }
+                break;
+        }
+        
+        filteredMessages.setValue(result);
     }
 
     private void updateStatusText() {
@@ -86,6 +143,18 @@ public class SmsViewModel extends AndroidViewModel {
     // Public getters for LiveData
     public LiveData<List<SmsMessage>> getAllMessages() {
         return allMessages;
+    }
+    
+    public LiveData<List<SmsMessage>> getFilteredMessages() {
+        return filteredMessages;
+    }
+    
+    public LiveData<SmsFilter> getCurrentFilter() {
+        return currentFilter;
+    }
+    
+    public void setFilter(SmsFilter filter) {
+        currentFilter.setValue(filter);
     }
 
     public LiveData<List<SmsMessage>> getInboxMessages() {

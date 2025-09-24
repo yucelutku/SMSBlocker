@@ -6,7 +6,9 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(grep:*)",
-      "Bash(java:*)"
+      "Bash(java:*)",
+      "Bash(export:*)",
+      "Bash(rg:*)"
     ],
     "deny": []
   }

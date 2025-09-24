@@ -32,6 +32,12 @@
             </intent-filter>
         </activity>
 
+        <!-- Keyword Settings Activity -->
+        <activity
+            android:name=".KeywordSettingsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.TestApplication" />
+
         <!-- Compose Activity for SMS composition - Required for default SMS app -->
         <activity
             android:name=".activities.ComposeActivity"

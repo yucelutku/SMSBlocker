@@ -20,10 +20,7 @@ public class SmsReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
-        Log.d(TAG, "SMS received, action: " + intent.getAction());
-
         if (intent.getAction() == null) {
-            Log.w(TAG, "Received intent with null action");
             return;
         }
 
@@ -34,21 +31,15 @@ public class SmsReceiver extends BroadcastReceiver {
             case Telephony.Sms.Intents.SMS_RECEIVED_ACTION:
                 handleSmsReceived(context, intent);
                 break;
-            default:
-                Log.w(TAG, "Unknown action: " + intent.getAction());
-                break;
         }
     }
 
     private void handleSmsDelivered(Context context, Intent intent) {
-        Log.d(TAG, "Handling SMS_DELIVER_ACTION");
-        
         try {
             // Extract SMS messages from intent
             SmsMessage[] messages = Telephony.Sms.Intents.getMessagesFromIntent(intent);
             
             if (messages == null || messages.length == 0) {
-                Log.w(TAG, "No SMS messages found in intent");
                 return;
             }
 
@@ -64,12 +55,9 @@ public class SmsReceiver extends BroadcastReceiver {
     }
 
     private void handleSmsReceived(Context context, Intent intent) {
-        Log.d(TAG, "Handling SMS_RECEIVED_ACTION (legacy)");
-        
         try {
             Bundle bundle = intent.getExtras();
             if (bundle == null) {
-                Log.w(TAG, "No extras in SMS_RECEIVED intent");
                 return;
             }
 
@@ -77,7 +65,6 @@ public class SmsReceiver extends BroadcastReceiver {
             String format = bundle.getString("format");
             
             if (pdus == null || pdus.length == 0) {
-                Log.w(TAG, "No PDUs found in SMS_RECEIVED intent");
                 return;
             }
 
@@ -97,76 +84,85 @@ public class SmsReceiver extends BroadcastReceiver {
         try {
             String sender = smsMessage.getDisplayOriginatingAddress();
             String messageBody = smsMessage.getDisplayMessageBody();
-            long timestamp = smsMessage.getTimestampMillis();
             
-            Log.d(TAG, "[SMS_PROCESS] Processing SMS from: " + sender + ", body length: " + 
-                  (messageBody != null ? messageBody.length() : 0));
-
-            Log.i(TAG, "[SMS_SAVE] CRITICAL: Saving SMS to system database (required for default SMS app)");
             Uri savedUri = saveSmsToSystem(context, smsMessage);
-            
-            if (savedUri != null) {
-                Log.i(TAG, "[SMS_SAVE] Successfully saved SMS to system at: " + savedUri);
-            } else {
-                Log.e(TAG, "[SMS_SAVE] FAILED to save SMS to system - message may be lost!");
+            if (savedUri == null) {
+                Log.e(TAG, "Failed to save SMS to system - message may be lost!");
             }
 
             SpamDetector.SpamAnalysisResult spamResult = 
-                SpamDetector.analyzeMessage(messageBody, sender);
+                SpamDetector.analyzeMessage(messageBody, sender, context);
             
             if (spamResult.isSpam) {
-                Log.i(TAG, "[SPAM_DETECT] Spam detected from " + sender + 
-                      " (score: " + spamResult.spamScore + "): " + spamResult.reason);
-                
                 handleSpamMessage(context, sender, messageBody, spamResult);
             } else {
-                Log.d(TAG, "[CLEAN_MSG] Clean message from " + sender);
                 handleCleanMessage(context, sender, messageBody);
             }
-
-            refreshSmsData(context);
             
         } catch (Exception e) {
-            Log.e(TAG, "[SMS_PROCESS] Error processing SMS message: " + e.getMessage(), e);
+            Log.e(TAG, "Error processing SMS: " + e.getMessage(), e);
         }
     }
 
     private Uri saveSmsToSystem(Context context, SmsMessage smsMessage) {
         try {
+            String address = smsMessage.getDisplayOriginatingAddress();
+            String body = smsMessage.getDisplayMessageBody();
+            long timestamp = smsMessage.getTimestampMillis();
+            
+            if (smsAlreadyExists(context, address, body, timestamp)) {
+                return null;
+            }
+            
             ContentValues values = new ContentValues();
-            values.put(Telephony.TextBasedSmsColumns.ADDRESS, smsMessage.getDisplayOriginatingAddress());
-            values.put(Telephony.TextBasedSmsColumns.BODY, smsMessage.getDisplayMessageBody());
-            values.put(Telephony.TextBasedSmsColumns.DATE, smsMessage.getTimestampMillis());
-            values.put(Telephony.TextBasedSmsColumns.DATE_SENT, smsMessage.getTimestampMillis());
+            values.put(Telephony.TextBasedSmsColumns.ADDRESS, address);
+            values.put(Telephony.TextBasedSmsColumns.BODY, body);
+            values.put(Telephony.TextBasedSmsColumns.DATE, timestamp);
+            values.put(Telephony.TextBasedSmsColumns.DATE_SENT, timestamp);
             values.put(Telephony.TextBasedSmsColumns.TYPE, Telephony.TextBasedSmsColumns.MESSAGE_TYPE_INBOX);
             values.put(Telephony.TextBasedSmsColumns.READ, 0);
             values.put(Telephony.TextBasedSmsColumns.SEEN, 0);
             values.put(Telephony.TextBasedSmsColumns.PROTOCOL, smsMessage.getProtocolIdentifier());
             
-            Log.d(TAG, "[SMS_SAVE] Inserting SMS into system database...");
-            Uri uri = context.getContentResolver().insert(Telephony.Sms.Inbox.CONTENT_URI, values);
+            return context.getContentResolver().insert(Telephony.Sms.Inbox.CONTENT_URI, values);
             
-            if (uri != null) {
-                Log.i(TAG, "[SMS_SAVE] SMS saved to system successfully, URI: " + uri);
-            } else {
-                Log.e(TAG, "[SMS_SAVE] ContentResolver.insert() returned null");
+        } catch (Exception e) {
+            Log.e(TAG, "Error saving SMS: " + e.getMessage(), e);
+            return null;
+        }
+    }
+    
+    private boolean smsAlreadyExists(Context context, String address, String body, long timestamp) {
+        try {
+            android.database.Cursor cursor = context.getContentResolver().query(
+                Telephony.Sms.Inbox.CONTENT_URI,
+                new String[]{"_id"},
+                "address = ? AND body = ? AND date >= ? AND date <= ?",
+                new String[]{
+                    address,
+                    body,
+                    String.valueOf(timestamp - 2000),
+                    String.valueOf(timestamp + 2000)
+                },
+                null
+            );
+            
+            if (cursor != null) {
+                boolean exists = cursor.getCount() > 0;
+                cursor.close();
+                return exists;
             }
             
-            return uri;
+            return false;
             
-        } catch (SecurityException e) {
-            Log.e(TAG, "[SMS_SAVE] SecurityException - app may not be default SMS app: " + e.getMessage(), e);
-            return null;
         } catch (Exception e) {
-            Log.e(TAG, "[SMS_SAVE] Error saving SMS to system: " + e.getMessage(), e);
-            return null;
+            Log.e(TAG, "Error checking duplicate: " + e.getMessage());
+            return false;
         }
     }
 
     private void handleSpamMessage(Context context, String sender, String messageBody, 
                                  SpamDetector.SpamAnalysisResult spamResult) {
-        Log.i(TAG, "Handling spam message from " + sender + 
-              " - Category: " + SpamDetector.getSpamCategory(spamResult));
         
         // TODO Phase 2: Implement spam blocking logic
         // - Move message to spam folder
@@ -176,7 +172,6 @@ public class SmsReceiver extends BroadcastReceiver {
     }
 
     private void handleCleanMessage(Context context, String sender, String messageBody) {
-        Log.d(TAG, "Handling clean message from " + sender);
         
         // TODO Phase 2: Implement clean message handling
         // - Show notification for legitimate messages

@@ -1,6 +1,9 @@
 package com.example.testapplication.utils;
 
+import android.content.Context;
+
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.regex.Pattern;
@@ -45,6 +48,10 @@ public class SpamDetector {
     }
 
     public static SpamAnalysisResult analyzeMessage(String messageBody, String sender) {
+        return analyzeMessage(messageBody, sender, null);
+    }
+    
+    public static SpamAnalysisResult analyzeMessage(String messageBody, String sender, Context context) {
         if (messageBody == null || messageBody.trim().isEmpty()) {
             return new SpamAnalysisResult(false, 0.0f, "Empty message", new ArrayList<>());
         }
@@ -54,8 +61,8 @@ public class SpamDetector {
         
         String lowerBody = messageBody.toLowerCase(new Locale("tr", "TR"));
         
-        // Keyword detection
-        spamScore += analyzeKeywords(lowerBody, reasons);
+        // Keyword detection with custom keywords if context provided
+        spamScore += analyzeKeywords(lowerBody, reasons, context);
         
         // Pattern detection
         spamScore += analyzePatterns(messageBody, reasons);
@@ -73,16 +80,22 @@ public class SpamDetector {
         return new SpamAnalysisResult(isSpam, Math.min(spamScore, 1.0f), mainReason, reasons);
     }
 
-    private static float analyzeKeywords(String lowerBody, List<String> reasons) {
+    private static float analyzeKeywords(String lowerBody, List<String> reasons, Context context) {
         float score = 0.0f;
         int keywordCount = 0;
         
-        for (String keyword : TURKISH_GAMBLING_KEYWORDS) {
+        List<String> allKeywords = new ArrayList<>(Arrays.asList(TURKISH_GAMBLING_KEYWORDS));
+        
+        if (context != null) {
+            allKeywords.addAll(KeywordManager.getInstance(context).getCustomKeywords());
+        }
+        
+        for (String keyword : allKeywords) {
             if (lowerBody.contains(keyword.toLowerCase(new Locale("tr", "TR")))) {
                 score += 0.25f;
                 keywordCount++;
-                if (keywordCount <= 3) { // Limit reason list
-                    reasons.add("Gambling keyword: " + keyword);
+                if (keywordCount <= 3) {
+                    reasons.add("Spam keyword: " + keyword);
                 }
             }
         }
@@ -197,5 +210,20 @@ public class SpamDetector {
         } else {
             return "Possible Spam";
         }
+    }
+    
+    public static List<String> getDefaultKeywords() {
+        return Arrays.asList(TURKISH_GAMBLING_KEYWORDS);
+    }
+    
+    public static boolean isDefaultKeyword(String keyword) {
+        if (keyword == null) return false;
+        String lower = keyword.toLowerCase(new Locale("tr", "TR"));
+        for (String defaultKeyword : TURKISH_GAMBLING_KEYWORDS) {
+            if (defaultKeyword.toLowerCase(new Locale("tr", "TR")).equals(lower)) {
+                return true;
+            }
+        }
+        return false;
     }
 }
