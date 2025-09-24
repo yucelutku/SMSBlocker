@@ -141,8 +141,16 @@ public class MainActivity extends AppCompatActivity {
         int id = item.getItemId();
         
         if (id == R.id.action_bulk_delete) {
+            // PERFORMANCE: Add timing measurement
+            long startTime = System.currentTimeMillis();
+            android.util.Log.d("PERFORMANCE", "🔍 Bulk delete button clicked at: " + startTime);
+            
             if (bulkDeleteDialog != null) {
                 bulkDeleteDialog.showMainDialog();
+                
+                // Log timing after dialog initiation
+                long endTime = System.currentTimeMillis();
+                android.util.Log.d("PERFORMANCE", "⚡ Dialog initiation took: " + (endTime - startTime) + "ms");
             }
             return true;
         } else if (id == R.id.action_refresh) {

@@ -66,54 +66,93 @@ public class BulkDeleteDialog {
      * Show main bulk delete options dialog
      */
     public void showMainDialog() {
-        // Get current message counts for button labels
+        // PERFORMANCE FIX: Show dialog immediately with placeholders, load counts async
+        long dialogStartTime = System.currentTimeMillis();
+        android.util.Log.d("PERFORMANCE", "🎯 BulkDeleteDialog.showMainDialog() started - INSTANT DISPLAY MODE");
+        
+        // IMMEDIATE DIALOG DISPLAY - No blocking database calls
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(context);
+        builder.setTitle(R.string.advanced_delete_options);
+        
+        // Create custom layout for main options
+        View dialogView = LayoutInflater.from(context).inflate(R.layout.dialog_bulk_delete_main, null);
+        builder.setView(dialogView);
+        
+        // Initialize main action buttons
+        MaterialButton btnDeleteAll = dialogView.findViewById(R.id.btn_delete_all);
+        MaterialButton btnDeleteSpam = dialogView.findViewById(R.id.btn_delete_spam);
+        MaterialButton btnDeleteNormal = dialogView.findViewById(R.id.btn_delete_normal);
+        MaterialButton btnAdvancedOptions = dialogView.findViewById(R.id.btn_advanced_options);
+        
+        // Set initial placeholder texts (will be updated async)
+        btnDeleteAll.setText("Tümünü Sil (...)");
+        btnDeleteSpam.setText("Spam Sil (...)");
+        btnDeleteNormal.setText("Normal Sil (...)");
+        
+        // Set click listeners immediately (using placeholders initially)
+        btnDeleteAll.setOnClickListener(v -> {
+            currentDialog.dismiss();
+            showConfirmationDialog("all", -1, () -> listener.onDeleteAll());
+        });
+        
+        btnDeleteSpam.setOnClickListener(v -> {
+            currentDialog.dismiss();
+            showConfirmationDialog("spam", -1, () -> listener.onDeleteSpam());
+        });
+        
+        btnDeleteNormal.setOnClickListener(v -> {
+            currentDialog.dismiss();
+            showConfirmationDialog("normal", -1, () -> listener.onDeleteNormal());
+        });
+        
+        btnAdvancedOptions.setOnClickListener(v -> {
+            currentDialog.dismiss();
+            showAdvancedOptionsDialog();
+        });
+        
+        builder.setNegativeButton(R.string.action_cancel, null);
+        
+        // Show dialog IMMEDIATELY
+        currentDialog = builder.create();
+        currentDialog.show();
+        
+        long instantDisplayTime = System.currentTimeMillis() - dialogStartTime;
+        android.util.Log.d("PERFORMANCE", "⚡ INSTANT DIALOG DISPLAY: " + instantDisplayTime + "ms");
+        
+        // ASYNC: Get current message counts for button labels (non-blocking)
         repository.getMessageCountByType(false, normalCount -> {
+            android.util.Log.d("PERFORMANCE", "📊 Normal count query took: " + (System.currentTimeMillis() - dialogStartTime) + "ms");
             repository.getMessageCountByType(true, spamCount -> {
+                android.util.Log.d("PERFORMANCE", "📊 Spam count query took: " + (System.currentTimeMillis() - dialogStartTime) + "ms");
                 int totalCount = normalCount + spamCount;
                 
-                MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(context);
-                builder.setTitle(R.string.advanced_delete_options);
-                
-                // Create custom layout for main options
-                View dialogView = LayoutInflater.from(context).inflate(R.layout.dialog_bulk_delete_main, null);
-                builder.setView(dialogView);
-                
-                // Initialize main action buttons
-                MaterialButton btnDeleteAll = dialogView.findViewById(R.id.btn_delete_all);
-                MaterialButton btnDeleteSpam = dialogView.findViewById(R.id.btn_delete_spam);
-                MaterialButton btnDeleteNormal = dialogView.findViewById(R.id.btn_delete_normal);
-                MaterialButton btnAdvancedOptions = dialogView.findViewById(R.id.btn_advanced_options);
-                
-                // Set button texts with counts
-                btnDeleteAll.setText(context.getString(R.string.bulk_delete_all, totalCount));
-                btnDeleteSpam.setText(context.getString(R.string.bulk_delete_spam, spamCount));
-                btnDeleteNormal.setText(context.getString(R.string.bulk_delete_normal, normalCount));
-                
-                // Set click listeners
-                btnDeleteAll.setOnClickListener(v -> {
-                    currentDialog.dismiss();
-                    showConfirmationDialog("all", totalCount, () -> listener.onDeleteAll());
-                });
-                
-                btnDeleteSpam.setOnClickListener(v -> {
-                    currentDialog.dismiss();
-                    showConfirmationDialog("spam", spamCount, () -> listener.onDeleteSpam());
-                });
-                
-                btnDeleteNormal.setOnClickListener(v -> {
-                    currentDialog.dismiss();
-                    showConfirmationDialog("normal", normalCount, () -> listener.onDeleteNormal());
-                });
-                
-                btnAdvancedOptions.setOnClickListener(v -> {
-                    currentDialog.dismiss();
-                    showAdvancedOptionsDialog();
-                });
-                
-                builder.setNegativeButton(R.string.action_cancel, null);
-                
-                currentDialog = builder.create();
-                currentDialog.show();
+                // PERFORMANCE FIX: Update existing dialog buttons instead of recreating
+                if (currentDialog != null && currentDialog.isShowing()) {
+                    // Update button texts with actual counts
+                    btnDeleteAll.setText(context.getString(R.string.bulk_delete_all, totalCount));
+                    btnDeleteSpam.setText(context.getString(R.string.bulk_delete_spam, spamCount));
+                    btnDeleteNormal.setText(context.getString(R.string.bulk_delete_normal, normalCount));
+                    
+                    // Update click listeners with actual counts
+                    btnDeleteAll.setOnClickListener(v -> {
+                        currentDialog.dismiss();
+                        showConfirmationDialog("all", totalCount, () -> listener.onDeleteAll());
+                    });
+                    
+                    btnDeleteSpam.setOnClickListener(v -> {
+                        currentDialog.dismiss();
+                        showConfirmationDialog("spam", spamCount, () -> listener.onDeleteSpam());
+                    });
+                    
+                    btnDeleteNormal.setOnClickListener(v -> {
+                        currentDialog.dismiss();
+                        showConfirmationDialog("normal", normalCount, () -> listener.onDeleteNormal());
+                    });
+                    
+                    // PERFORMANCE: Log total async update time
+                    long totalTime = System.currentTimeMillis() - dialogStartTime;
+                    android.util.Log.d("PERFORMANCE", "🎉 ASYNC COUNTS LOADED: " + totalTime + "ms");
+                }
             });
         });
     }

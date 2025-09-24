@@ -596,8 +596,13 @@ public class SmsRepository {
     // Statistics methods for bulk operations
     public void getMessageCountByType(boolean isSpam, RepositoryCallback<Integer> callback) {
         executor.execute(() -> {
+            // PERFORMANCE: Add timing measurement
+            long startTime = System.currentTimeMillis();
+            android.util.Log.d("PERFORMANCE", "🔍 getMessageCountByType(" + isSpam + ") started");
+            
             try {
                 List<SmsMessage> allMessages = SmsHelper.getAllMessages(context);
+                android.util.Log.d("PERFORMANCE", "📱 SmsHelper.getAllMessages() took: " + (System.currentTimeMillis() - startTime) + "ms");
                 int count = 0;
                 
                 for (SmsMessage message : allMessages) {
@@ -607,6 +612,10 @@ public class SmsRepository {
                 }
                 
                 final int finalCount = count;
+                // PERFORMANCE: Log total query time
+                long totalTime = System.currentTimeMillis() - startTime;
+                android.util.Log.d("PERFORMANCE", "⚡ getMessageCountByType(" + isSpam + ") TOTAL: " + totalTime + "ms, found: " + finalCount);
+                
                 mainHandler.post(() -> {
                     if (callback != null) {
                         callback.onResult(finalCount);
@@ -614,6 +623,7 @@ public class SmsRepository {
                 });
                 
             } catch (Exception e) {
+                android.util.Log.d("PERFORMANCE", "❌ getMessageCountByType(" + isSpam + ") ERROR: " + (System.currentTimeMillis() - startTime) + "ms");
                 mainHandler.post(() -> {
                     if (callback != null) {
                         callback.onResult(0);
