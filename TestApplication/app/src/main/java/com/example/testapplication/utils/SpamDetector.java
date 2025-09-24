@@ -59,10 +59,10 @@ public class SpamDetector {
         float spamScore = 0.0f;
         List<String> reasons = new ArrayList<>();
         
-        String lowerBody = messageBody.toLowerCase(new Locale("tr", "TR"));
+        String trimmedBody = messageBody.trim();
+        String lowerBody = trimmedBody.toLowerCase(Locale.forLanguageTag("tr"));
         
-        // Keyword detection with custom keywords if context provided
-        spamScore += analyzeKeywords(lowerBody, reasons, context);
+        spamScore += analyzeKeywords(trimmedBody, lowerBody, reasons, context);
         
         // Pattern detection
         spamScore += analyzePatterns(messageBody, reasons);
@@ -80,19 +80,33 @@ public class SpamDetector {
         return new SpamAnalysisResult(isSpam, Math.min(spamScore, 1.0f), mainReason, reasons);
     }
 
-    private static float analyzeKeywords(String lowerBody, List<String> reasons, Context context) {
+    private static float analyzeKeywords(String trimmedBody, String lowerBody, List<String> reasons, Context context) {
         float score = 0.0f;
         int keywordCount = 0;
         
         List<String> allKeywords = new ArrayList<>(Arrays.asList(TURKISH_GAMBLING_KEYWORDS));
         
         if (context != null) {
-            allKeywords.addAll(KeywordManager.getInstance(context).getCustomKeywords());
+            List<String> customKeywords = KeywordManager.getInstance(context).getCustomKeywords();
+            allKeywords.addAll(customKeywords);
         }
         
         for (String keyword : allKeywords) {
-            if (lowerBody.contains(keyword.toLowerCase(new Locale("tr", "TR")))) {
-                score += 0.25f;
+            String normalizedKeyword = keyword.toLowerCase(Locale.forLanguageTag("tr"));
+            
+            if (lowerBody.equals(normalizedKeyword)) {
+                score += 0.8f;
+                keywordCount++;
+                reasons.add("Exact match: " + keyword);
+                continue;
+            }
+            
+            if (lowerBody.contains(" " + normalizedKeyword + " ") ||
+                lowerBody.startsWith(normalizedKeyword + " ") ||
+                lowerBody.endsWith(" " + normalizedKeyword) ||
+                lowerBody.contains(normalizedKeyword)) {
+                
+                score += 0.35f;
                 keywordCount++;
                 if (keywordCount <= 3) {
                     reasons.add("Spam keyword: " + keyword);
@@ -100,10 +114,9 @@ public class SpamDetector {
             }
         }
         
-        // Bonus for multiple keywords
         if (keywordCount >= 3) {
             score += 0.2f;
-            reasons.add("Multiple gambling keywords detected");
+            reasons.add("Multiple spam keywords");
         }
         
         return score;
