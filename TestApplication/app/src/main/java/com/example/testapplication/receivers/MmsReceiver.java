@@ -119,23 +119,19 @@ public class MmsReceiver extends BroadcastReceiver {
     }
 
     private void handleMmsContent(Context context, byte[] data) {
-        Log.d(TAG, "Handling MMS content");
+        Log.d(TAG, "[MMS_HANDLE] Handling MMS content");
         
         try {
-            // For Phase 1, basic MMS handling
-            // Future phases can implement:
-            // - Parse MMS PDU to extract sender, content
-            // - Apply spam detection to MMS content
-            // - Check sender against blocked numbers
-            // - Extract and scan media attachments
+            Log.i(TAG, "[MMS_SAVE] CRITICAL: MMS must be written to system by MMS library");
+            Log.i(TAG, "[MMS_SAVE] Default SMS apps typically use com.android.mms.transaction.TransactionService");
+            Log.i(TAG, "[MMS_SAVE] This app delegates MMS handling to system - MMS should auto-save");
             
-            Log.i(TAG, "MMS message processed - Size: " + data.length + " bytes");
+            Log.i(TAG, "[MMS_PROCESS] MMS message received - Size: " + data.length + " bytes");
             
-            // Refresh data to update UI
             refreshMmsData(context);
             
         } catch (Exception e) {
-            Log.e(TAG, "Error handling MMS content: " + e.getMessage(), e);
+            Log.e(TAG, "[MMS_HANDLE] Error handling MMS content: " + e.getMessage(), e);
         }
     }
 

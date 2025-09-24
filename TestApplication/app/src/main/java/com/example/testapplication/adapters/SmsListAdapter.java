@@ -62,11 +62,21 @@ public class SmsListAdapter extends ListAdapter<SmsMessage, SmsListAdapter.SmsVi
         }
 
         public void bind(SmsMessage message) {
-            // Set basic message info
-            binding.senderText.setText(message.getSenderName());
+            String contactName = com.example.testapplication.utils.ContactsHelper.getContactName(
+                itemView.getContext(), 
+                message.address
+            );
+            
+            binding.senderText.setText(contactName);
+            
+            if (!contactName.equals(message.address)) {
+                binding.messageIdText.setText(message.address + " • ID: " + message.id);
+            } else {
+                binding.messageIdText.setText("ID: " + message.id);
+            }
+            
             binding.messageBodyText.setText(message.body != null ? message.body : "");
             binding.dateText.setText(formatDate(message.date));
-            binding.messageIdText.setText("ID: " + message.id);
 
             // Set message type
             String typeText = getMessageTypeText(message.type);

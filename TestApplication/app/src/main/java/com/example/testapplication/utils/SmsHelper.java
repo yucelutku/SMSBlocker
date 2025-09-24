@@ -132,18 +132,36 @@ public class SmsHelper {
     }
 
     public static boolean deleteSmsMessage(Context context, long messageId) {
+        Log.d(TAG, "[DELETE] ========== SMS DELETION DEBUG START ==========");
+        Log.d(TAG, "[DELETE] Message ID to delete: " + messageId);
+        Log.d(TAG, "[DELETE] Package name: " + context.getPackageName());
+        Log.d(TAG, "[DELETE] Android SDK: " + android.os.Build.VERSION.SDK_INT);
+        Log.d(TAG, "[DELETE] Device: " + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL);
+        
+        boolean hasReadSms = PermissionHelper.hasReadSmsPermission(context);
+        boolean hasSendSms = PermissionHelper.hasSendSmsPermission(context);
+        boolean hasReceiveSms = PermissionHelper.hasReceiveSmsPermission(context);
+        boolean isDefaultSmsApp = PermissionHelper.isDefaultSmsApp(context);
+        
+        Log.d(TAG, "[DELETE] Permission - READ_SMS: " + hasReadSms);
+        Log.d(TAG, "[DELETE] Permission - SEND_SMS: " + hasSendSms);
+        Log.d(TAG, "[DELETE] Permission - RECEIVE_SMS: " + hasReceiveSms);
+        Log.d(TAG, "[DELETE] Is Default SMS App: " + isDefaultSmsApp);
+        
         if (!PermissionHelper.hasSmsPermissions(context)) {
-            Log.e(TAG, "[DELETE] SMS permissions not granted for deletion");
+            Log.e(TAG, "[DELETE] FAILED: SMS permissions not granted");
+            Log.e(TAG, "[DELETE] ========== SMS DELETION DEBUG END (PERMISSION FAILURE) ==========");
             return false;
         }
 
-        if (!PermissionHelper.hasWriteSmsPermission(context)) {
-            Log.e(TAG, "[DELETE] WRITE_SMS permission not granted");
-            return false;
-        }
-
-        if (!PermissionHelper.isDefaultSmsApp(context)) {
-            Log.e(TAG, "[DELETE] App is not default SMS app - deletion will fail on Android 4.4+");
+        if (!isDefaultSmsApp) {
+            Log.e(TAG, "[DELETE] FAILED: App is not default SMS app - deletion requires default SMS app status on Android 4.4+");
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
+                String defaultPackage = android.provider.Telephony.Sms.getDefaultSmsPackage(context);
+                Log.e(TAG, "[DELETE] Current default SMS app: " + defaultPackage);
+                Log.e(TAG, "[DELETE] This app package: " + context.getPackageName());
+            }
+            Log.e(TAG, "[DELETE] ========== SMS DELETION DEBUG END (DEFAULT APP FAILURE) ==========");
             return false;
         }
 
@@ -151,23 +169,51 @@ public class SmsHelper {
             ContentResolver resolver = context.getContentResolver();
             Uri deleteUri = Uri.parse("content://sms/" + messageId);
             
-            Log.d(TAG, "[DELETE] Attempting to delete SMS message ID: " + messageId + " from URI: " + deleteUri);
+            Log.d(TAG, "[DELETE] ContentResolver: " + resolver.getClass().getName());
+            Log.d(TAG, "[DELETE] Delete URI: " + deleteUri.toString());
+            
+            SmsMessage messageToDelete = getSmsMessageById(context, messageId);
+            if (messageToDelete != null) {
+                Log.d(TAG, "[DELETE] Message details - From: " + messageToDelete.address + ", Body: " + messageToDelete.body.substring(0, Math.min(50, messageToDelete.body.length())));
+                Log.d(TAG, "[DELETE] Message type: " + messageToDelete.type + ", ThreadID: " + messageToDelete.threadId);
+            } else {
+                Log.w(TAG, "[DELETE] WARNING: Could not retrieve message details before deletion");
+            }
+            
+            Log.i(TAG, "[DELETE] Executing ContentResolver.delete() on URI: " + deleteUri);
             
             int deletedRows = resolver.delete(deleteUri, null, null);
             
+            Log.i(TAG, "[DELETE] ContentResolver.delete() returned: " + deletedRows + " rows");
+            
             if (deletedRows > 0) {
-                Log.i(TAG, "[DELETE] Successfully deleted SMS message " + messageId + ", rows affected: " + deletedRows);
+                Log.i(TAG, "[DELETE] SUCCESS: Deleted SMS message " + messageId + ", rows affected: " + deletedRows);
+                Log.i(TAG, "[DELETE] ========== SMS DELETION DEBUG END (SUCCESS) ==========");
                 return true;
             } else {
-                Log.w(TAG, "[DELETE] No rows deleted for message ID: " + messageId);
+                Log.e(TAG, "[DELETE] FAILED: No rows deleted for message ID: " + messageId);
+                Log.e(TAG, "[DELETE] Possible causes: Message already deleted, invalid ID, or system protection");
+                Log.e(TAG, "[DELETE] ========== SMS DELETION DEBUG END (ZERO ROWS) ==========");
                 return false;
             }
             
         } catch (SecurityException e) {
-            Log.e(TAG, "[DELETE] Security exception deleting SMS " + messageId + ": " + e.getMessage(), e);
+            Log.e(TAG, "[DELETE] SECURITY EXCEPTION: " + e.getClass().getName());
+            Log.e(TAG, "[DELETE] Exception message: " + e.getMessage());
+            Log.e(TAG, "[DELETE] Stack trace:", e);
+            Log.e(TAG, "[DELETE] This indicates system-level SMS protection or missing permissions");
+            Log.e(TAG, "[DELETE] ========== SMS DELETION DEBUG END (SECURITY EXCEPTION) ==========");
+            return false;
+        } catch (IllegalArgumentException e) {
+            Log.e(TAG, "[DELETE] ILLEGAL ARGUMENT: Invalid URI or parameters");
+            Log.e(TAG, "[DELETE] Exception: " + e.getMessage(), e);
+            Log.e(TAG, "[DELETE] ========== SMS DELETION DEBUG END (ILLEGAL ARGUMENT) ==========");
             return false;
         } catch (Exception e) {
-            Log.e(TAG, "[DELETE] Error deleting SMS " + messageId + ": " + e.getMessage(), e);
+            Log.e(TAG, "[DELETE] UNEXPECTED EXCEPTION: " + e.getClass().getName());
+            Log.e(TAG, "[DELETE] Exception message: " + e.getMessage());
+            Log.e(TAG, "[DELETE] Stack trace:", e);
+            Log.e(TAG, "[DELETE] ========== SMS DELETION DEBUG END (EXCEPTION) ==========");
             return false;
         }
     }

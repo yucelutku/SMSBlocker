@@ -1,8 +1,10 @@
 package com.example.testapplication.receivers;
 
 import android.content.BroadcastReceiver;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.provider.Telephony;
 import android.telephony.SmsMessage;
@@ -97,32 +99,67 @@ public class SmsReceiver extends BroadcastReceiver {
             String messageBody = smsMessage.getDisplayMessageBody();
             long timestamp = smsMessage.getTimestampMillis();
             
-            Log.d(TAG, "Processing SMS from: " + sender + ", body length: " + 
+            Log.d(TAG, "[SMS_PROCESS] Processing SMS from: " + sender + ", body length: " + 
                   (messageBody != null ? messageBody.length() : 0));
 
-            // Apply spam detection
+            Log.i(TAG, "[SMS_SAVE] CRITICAL: Saving SMS to system database (required for default SMS app)");
+            Uri savedUri = saveSmsToSystem(context, smsMessage);
+            
+            if (savedUri != null) {
+                Log.i(TAG, "[SMS_SAVE] Successfully saved SMS to system at: " + savedUri);
+            } else {
+                Log.e(TAG, "[SMS_SAVE] FAILED to save SMS to system - message may be lost!");
+            }
+
             SpamDetector.SpamAnalysisResult spamResult = 
                 SpamDetector.analyzeMessage(messageBody, sender);
             
             if (spamResult.isSpam) {
-                Log.i(TAG, "Spam detected from " + sender + 
+                Log.i(TAG, "[SPAM_DETECT] Spam detected from " + sender + 
                       " (score: " + spamResult.spamScore + "): " + spamResult.reason);
                 
-                // For now, just log spam detection - in future phases we could:
-                // - Block the message
-                // - Move to spam folder
-                // - Send notification about blocked spam
                 handleSpamMessage(context, sender, messageBody, spamResult);
             } else {
-                Log.d(TAG, "Clean message from " + sender);
+                Log.d(TAG, "[CLEAN_MSG] Clean message from " + sender);
                 handleCleanMessage(context, sender, messageBody);
             }
 
-            // Refresh repository data to update UI
             refreshSmsData(context);
             
         } catch (Exception e) {
-            Log.e(TAG, "Error processing SMS message: " + e.getMessage(), e);
+            Log.e(TAG, "[SMS_PROCESS] Error processing SMS message: " + e.getMessage(), e);
+        }
+    }
+
+    private Uri saveSmsToSystem(Context context, SmsMessage smsMessage) {
+        try {
+            ContentValues values = new ContentValues();
+            values.put(Telephony.TextBasedSmsColumns.ADDRESS, smsMessage.getDisplayOriginatingAddress());
+            values.put(Telephony.TextBasedSmsColumns.BODY, smsMessage.getDisplayMessageBody());
+            values.put(Telephony.TextBasedSmsColumns.DATE, smsMessage.getTimestampMillis());
+            values.put(Telephony.TextBasedSmsColumns.DATE_SENT, smsMessage.getTimestampMillis());
+            values.put(Telephony.TextBasedSmsColumns.TYPE, Telephony.TextBasedSmsColumns.MESSAGE_TYPE_INBOX);
+            values.put(Telephony.TextBasedSmsColumns.READ, 0);
+            values.put(Telephony.TextBasedSmsColumns.SEEN, 0);
+            values.put(Telephony.TextBasedSmsColumns.PROTOCOL, smsMessage.getProtocolIdentifier());
+            
+            Log.d(TAG, "[SMS_SAVE] Inserting SMS into system database...");
+            Uri uri = context.getContentResolver().insert(Telephony.Sms.Inbox.CONTENT_URI, values);
+            
+            if (uri != null) {
+                Log.i(TAG, "[SMS_SAVE] SMS saved to system successfully, URI: " + uri);
+            } else {
+                Log.e(TAG, "[SMS_SAVE] ContentResolver.insert() returned null");
+            }
+            
+            return uri;
+            
+        } catch (SecurityException e) {
+            Log.e(TAG, "[SMS_SAVE] SecurityException - app may not be default SMS app: " + e.getMessage(), e);
+            return null;
+        } catch (Exception e) {
+            Log.e(TAG, "[SMS_SAVE] Error saving SMS to system: " + e.getMessage(), e);
+            return null;
         }
     }
 

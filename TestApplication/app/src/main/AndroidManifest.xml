@@ -8,6 +8,9 @@
     <uses-permission android:name="android.permission.RECEIVE_SMS" />
     <uses-permission android:name="android.permission.WRITE_SMS" />
     <uses-permission android:name="android.permission.RECEIVE_MMS" />
+    
+    <!-- Contacts Permission for displaying sender names -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
 
     <application
         android:allowBackup="true"
@@ -29,24 +32,26 @@
             </intent-filter>
         </activity>
 
-        <!-- Compose Activity for SMS composition -->
+        <!-- Compose Activity for SMS composition - Required for default SMS app -->
         <activity
             android:name=".activities.ComposeActivity"
             android:exported="true"
             android:theme="@style/Theme.TestApplication">
-            <!-- Handle SEND action for sharing text to SMS -->
-            <intent-filter>
-                <action android:name="android.intent.action.SEND" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="text/plain" />
-            </intent-filter>
-            <!-- Handle SENDTO action for sms: URIs -->
+            <!-- Handle SENDTO action for sms: and mms: URIs (Primary for default SMS app) -->
             <intent-filter>
                 <action android:name="android.intent.action.SENDTO" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="sms" />
                 <data android:scheme="smsto" />
+                <data android:scheme="mms" />
+                <data android:scheme="mmsto" />
+            </intent-filter>
+            <!-- Handle SEND action for sharing text to SMS -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
             </intent-filter>
             <!-- Handle VIEW action for sms: URIs -->
             <intent-filter>
@@ -54,30 +59,35 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="sms" />
+                <data android:scheme="smsto" />
+                <data android:scheme="mms" />
+                <data android:scheme="mmsto" />
             </intent-filter>
         </activity>
 
-        <!-- SMS Receiver for incoming SMS messages -->
+        <!-- SMS Receiver for incoming SMS messages - Required for default SMS app -->
         <receiver
             android:name=".receivers.SmsReceiver"
             android:enabled="true"
-            android:exported="true">
-            <!-- High priority for default SMS app -->
+            android:exported="true"
+            android:permission="android.permission.BROADCAST_SMS">
+            <!-- Primary SMS_DELIVER for default SMS app (Android 4.4+) -->
             <intent-filter android:priority="1000">
                 <action android:name="android.provider.Telephony.SMS_DELIVER" />
             </intent-filter>
-            <!-- Legacy SMS received action -->
+            <!-- Legacy SMS_RECEIVED for backward compatibility -->
             <intent-filter android:priority="1000">
                 <action android:name="android.provider.Telephony.SMS_RECEIVED" />
             </intent-filter>
         </receiver>
 
-        <!-- MMS Receiver for incoming MMS messages -->
+        <!-- MMS Receiver for incoming MMS messages - Required for default SMS app -->
         <receiver
             android:name=".receivers.MmsReceiver"
             android:enabled="true"
-            android:exported="true">
-            <!-- WAP Push for MMS -->
+            android:exported="true"
+            android:permission="android.permission.BROADCAST_WAP_PUSH">
+            <!-- Primary WAP_PUSH_DELIVER for default SMS app (Android 4.4+) -->
             <intent-filter android:priority="1000">
                 <action android:name="android.provider.Telephony.WAP_PUSH_DELIVER" />
                 <data android:mimeType="application/vnd.wap.mms-message" />
