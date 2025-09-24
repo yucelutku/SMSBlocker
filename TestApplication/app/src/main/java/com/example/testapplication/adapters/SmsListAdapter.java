@@ -15,6 +15,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.testapplication.R;
 import com.example.testapplication.databinding.ItemSmsMessageBinding;
 import com.example.testapplication.models.SmsMessage;
+import com.example.testapplication.utils.SpamDetector;
 import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.chip.Chip;
 
@@ -88,6 +89,9 @@ public class SmsListAdapter extends ListAdapter<SmsMessage, SmsListAdapter.SmsVi
             } else {
                 setupCleanMessage();
             }
+            
+            // Setup context analysis (for all messages)
+            setupContextAnalysis(message);
 
             // Set click listeners
             binding.deleteButton.setOnClickListener(v -> {
@@ -100,6 +104,11 @@ public class SmsListAdapter extends ListAdapter<SmsMessage, SmsListAdapter.SmsVi
                 if (actionListener != null) {
                     actionListener.onMessageClick(message);
                 }
+            });
+            
+            // Setup expand/collapse functionality
+            binding.expandButton.setOnClickListener(v -> {
+                toggleContextAnalysis();
             });
 
             // Set long click for additional actions
@@ -147,6 +156,69 @@ public class SmsListAdapter extends ListAdapter<SmsMessage, SmsListAdapter.SmsVi
                 ContextCompat.getColor(itemView.getContext(), android.R.color.black));
             binding.senderText.setTextColor(
                 ContextCompat.getColor(itemView.getContext(), android.R.color.black));
+        }
+        
+        /**
+         * Setup context analysis display for message
+         */
+        private void setupContextAnalysis(SmsMessage message) {
+            // Analyze message with context
+            SpamDetector.SpamAnalysisResult result = SpamDetector.analyzeMessage(
+                message.body, message.address, itemView.getContext());
+            
+            // Show expand button for messages with context data
+            if (result.contextAnalysis != null && result.contextAnalysis.messageLength > 0) {
+                binding.expandButton.setVisibility(View.VISIBLE);
+                
+                // Build context details text
+                String contextDetails = buildContextDetailsText(result.contextAnalysis);
+                binding.contextDetailsText.setText(contextDetails);
+            } else {
+                binding.expandButton.setVisibility(View.GONE);
+                binding.contextAnalysisLayout.setVisibility(View.GONE);
+            }
+        }
+        
+        /**
+         * Build context analysis details text
+         */
+        private String buildContextDetailsText(SpamDetector.ContextAnalysis context) {
+            StringBuilder details = new StringBuilder();
+            
+            // Message length info
+            details.append("• Mesaj uzunluğu: ").append(context.messageLength)
+                   .append(" karakter (").append(context.lengthCategory).append(")\n");
+            
+            // Keyword count and density
+            details.append("• Anahtar kelime sayısı: ").append(context.keywordCount).append("\n");
+            details.append("• Kelime yoğunluğu: %").append(String.format(Locale.getDefault(), "%.1f", context.keywordDensity)).append("\n");
+            
+            // Context multiplier
+            details.append("• Bağlam çarpanı: ").append(String.format(Locale.getDefault(), "%.1fx", context.contextMultiplier));
+            
+            // Context description
+            if (!context.contextDescription.isEmpty()) {
+                details.append("\n• ").append(context.contextDescription);
+            }
+            
+            return details.toString();
+        }
+        
+        /**
+         * Toggle context analysis visibility
+         */
+        private void toggleContextAnalysis() {
+            if (binding.contextAnalysisLayout.getVisibility() == View.GONE) {
+                // Expand
+                binding.contextAnalysisLayout.setVisibility(View.VISIBLE);
+                binding.expandButton.setText("Detayları Gizle");
+                binding.expandButton.setIconResource(android.R.drawable.arrow_up_float);
+            } else {
+                // Collapse
+                binding.contextAnalysisLayout.setVisibility(View.GONE);
+                binding.expandButton.setText("Detayları Göster");
+                binding.expandButton.setIconResource(android.R.drawable.arrow_down_float);
+            }
         }
 
         private String formatDate(long timestamp) {

@@ -129,6 +129,56 @@
 
         </LinearLayout>
 
+        <!-- Context Analysis Info (expandable) -->
+        <LinearLayout
+            android:id="@+id/contextAnalysisLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginTop="8dp"
+            android:padding="12dp"
+            android:background="?attr/colorSurfaceVariant"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <!-- Context Header -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="📊 Bağlam Analizi"
+                android:textAppearance="@style/TextAppearance.Material3.LabelMedium"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:layout_marginBottom="8dp" />
+
+            <!-- Context Details -->
+            <TextView
+                android:id="@+id/contextDetailsText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:lineSpacingExtra="2dp"
+                tools:text="• Mesaj uzunluğu: 156 karakter (Uzun)\n• Anahtar kelime sayısı: 1\n• Kelime yoğunluğu: %0.6\n• Bağlam çarpanı: 0.6x (azaltılmış risk)" />
+
+        </LinearLayout>
+
+        <!-- Expand/Collapse Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/expandButton"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="4dp"
+            android:text="Detayları Göster"
+            android:textSize="12sp"
+            android:visibility="gone"
+            app:icon="@android:drawable/arrow_down_float"
+            app:iconSize="16dp"
+            tools:visibility="visible" />
+
+        </LinearLayout>
+
     </LinearLayout>
 
 </com.google.android.material.card.MaterialCardView>

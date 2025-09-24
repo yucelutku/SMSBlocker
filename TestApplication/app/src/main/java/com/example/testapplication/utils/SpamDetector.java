@@ -17,6 +17,11 @@ public class SpamDetector {
         "çevrimsiz", "hoşgeldin", "promosyon", "oyna", "kazan"
     };
     
+    // Message length categories for context-aware scoring
+    private static final int SHORT_MESSAGE = 50;     // SMS length
+    private static final int MEDIUM_MESSAGE = 150;   // Normal message  
+    private static final int LONG_MESSAGE = 300;     // Detailed message
+    
     private static final String[] SUSPICIOUS_PATTERNS = {
         "\\b\\d{2,}\\s*(TL|₺|lira)", // Money amounts
         "\\b(www\\.|http|https)", // Links  
@@ -38,12 +43,61 @@ public class SpamDetector {
         public final float spamScore;
         public final String reason;
         public final List<String> detectionReasons;
+        public final ContextAnalysis contextAnalysis;
 
-        public SpamAnalysisResult(boolean isSpam, float spamScore, String reason, List<String> detectionReasons) {
+        public SpamAnalysisResult(boolean isSpam, float spamScore, String reason, List<String> detectionReasons, ContextAnalysis contextAnalysis) {
             this.isSpam = isSpam;
             this.spamScore = spamScore;
             this.reason = reason;
             this.detectionReasons = detectionReasons != null ? detectionReasons : new ArrayList<>();
+            this.contextAnalysis = contextAnalysis != null ? contextAnalysis : new ContextAnalysis();
+        }
+        
+        // Backward compatibility
+        public SpamAnalysisResult(boolean isSpam, float spamScore, String reason, List<String> detectionReasons) {
+            this(isSpam, spamScore, reason, detectionReasons, new ContextAnalysis());
+        }
+    }
+    
+    public static class ContextAnalysis {
+        public final int messageLength;
+        public final int keywordCount;
+        public final float keywordDensity;
+        public final String lengthCategory;
+        public final float contextMultiplier;
+        public final String contextDescription;
+        
+        public ContextAnalysis() {
+            this(0, 0, 0.0f, "Unknown", 1.0f, "");
+        }
+        
+        public ContextAnalysis(int messageLength, int keywordCount, float keywordDensity, 
+                             String lengthCategory, float contextMultiplier, String contextDescription) {
+            this.messageLength = messageLength;
+            this.keywordCount = keywordCount;
+            this.keywordDensity = keywordDensity;
+            this.lengthCategory = lengthCategory;
+            this.contextMultiplier = contextMultiplier;
+            this.contextDescription = contextDescription;
+        }
+    }
+    
+    private static class KeywordAnalysisResult {
+        public final float contextAwareScore;
+        public final int keywordCount;
+        public final float keywordDensity;
+        public final String lengthCategory;
+        public final float contextMultiplier;
+        public final String contextDescription;
+        
+        public KeywordAnalysisResult(float contextAwareScore, int keywordCount, float keywordDensity,
+                                   String lengthCategory, float contextMultiplier, String contextDescription) {
+            this.contextAwareScore = contextAwareScore;
+            this.keywordCount = keywordCount;
+            this.keywordDensity = keywordDensity;
+            this.lengthCategory = lengthCategory;
+            this.contextMultiplier = contextMultiplier;
+            this.contextDescription = contextDescription;
         }
     }
 
@@ -53,7 +107,7 @@ public class SpamDetector {
     
     public static SpamAnalysisResult analyzeMessage(String messageBody, String sender, Context context) {
         if (messageBody == null || messageBody.trim().isEmpty()) {
-            return new SpamAnalysisResult(false, 0.0f, "Empty message", new ArrayList<>());
+            return new SpamAnalysisResult(false, 0.0f, "Empty message", new ArrayList<>(), new ContextAnalysis());
         }
 
         float spamScore = 0.0f;
@@ -62,27 +116,44 @@ public class SpamDetector {
         String trimmedBody = messageBody.trim();
         String lowerBody = trimmedBody.toLowerCase(Locale.forLanguageTag("tr"));
         
-        spamScore += analyzeKeywords(trimmedBody, lowerBody, reasons, context);
+        // CONTEXT-AWARE KEYWORD ANALYSIS
+        KeywordAnalysisResult keywordResult = analyzeKeywordsWithContext(trimmedBody, lowerBody, reasons, context);
+        spamScore += keywordResult.contextAwareScore;
         
         // Pattern detection
         spamScore += analyzePatterns(messageBody, reasons);
         
-        // Sender analysis
+        // Sender analysis  
         spamScore += analyzeSender(sender, reasons);
         
         // Message length and characteristics
         spamScore += analyzeMessageCharacteristics(messageBody, reasons);
 
+        // Create context analysis
+        ContextAnalysis contextAnalysis = new ContextAnalysis(
+            trimmedBody.length(),
+            keywordResult.keywordCount,
+            keywordResult.keywordDensity,
+            keywordResult.lengthCategory,
+            keywordResult.contextMultiplier,
+            keywordResult.contextDescription
+        );
+
         boolean isSpam = spamScore >= 0.5f;
         String mainReason = reasons.isEmpty() ? "No spam indicators" : 
                            String.join(", ", reasons.subList(0, Math.min(3, reasons.size())));
 
-        return new SpamAnalysisResult(isSpam, Math.min(spamScore, 1.0f), mainReason, reasons);
+        return new SpamAnalysisResult(isSpam, Math.min(spamScore, 1.0f), mainReason, reasons, contextAnalysis);
     }
 
-    private static float analyzeKeywords(String trimmedBody, String lowerBody, List<String> reasons, Context context) {
-        float score = 0.0f;
+    /**
+     * Context-aware keyword analysis with message length consideration
+     */
+    private static KeywordAnalysisResult analyzeKeywordsWithContext(String trimmedBody, String lowerBody, 
+                                                                   List<String> reasons, Context context) {
+        float baseScore = 0.0f;
         int keywordCount = 0;
+        List<String> foundKeywords = new ArrayList<>();
         
         List<String> allKeywords = new ArrayList<>(Arrays.asList(TURKISH_GAMBLING_KEYWORDS));
         
@@ -91,12 +162,14 @@ public class SpamDetector {
             allKeywords.addAll(customKeywords);
         }
         
+        // Analyze keywords
         for (String keyword : allKeywords) {
             String normalizedKeyword = keyword.toLowerCase(Locale.forLanguageTag("tr"));
             
             if (lowerBody.equals(normalizedKeyword)) {
-                score += 0.8f;
+                baseScore += 0.8f;
                 keywordCount++;
+                foundKeywords.add(keyword);
                 reasons.add("Exact match: " + keyword);
                 continue;
             }
@@ -106,8 +179,9 @@ public class SpamDetector {
                 lowerBody.endsWith(" " + normalizedKeyword) ||
                 lowerBody.contains(normalizedKeyword)) {
                 
-                score += 0.35f;
+                baseScore += 0.35f;
                 keywordCount++;
+                foundKeywords.add(keyword);
                 if (keywordCount <= 3) {
                     reasons.add("Spam keyword: " + keyword);
                 }
@@ -115,11 +189,61 @@ public class SpamDetector {
         }
         
         if (keywordCount >= 3) {
-            score += 0.2f;
+            baseScore += 0.2f;
             reasons.add("Multiple spam keywords");
         }
         
-        return score;
+        // CONTEXT-AWARE SCORING BASED ON MESSAGE LENGTH
+        int messageLength = trimmedBody.length();
+        String lengthCategory;
+        float contextMultiplier;
+        String contextDescription;
+        
+        if (messageLength <= SHORT_MESSAGE) {
+            // Short messages: keywords have HIGH impact
+            lengthCategory = "Kısa";
+            contextMultiplier = 1.5f;
+            contextDescription = "Kısa mesaj - artırılmış spam skoru";
+            if (keywordCount > 0) {
+                reasons.add("Kısa mesajda spam kelime - yüksek risk");
+            }
+        } else if (messageLength <= MEDIUM_MESSAGE) {
+            // Medium messages: keywords have NORMAL impact  
+            lengthCategory = "Orta";
+            contextMultiplier = 1.0f;
+            contextDescription = "Orta mesaj - normal spam skoru";
+        } else {
+            // Long messages: keywords have REDUCED impact
+            lengthCategory = "Uzun";
+            contextMultiplier = 0.6f;
+            contextDescription = "Uzun mesaj - azaltılmış spam skoru";
+            if (keywordCount > 0) {
+                reasons.add("Uzun mesajda tek kelime - düşük risk");
+            }
+        }
+        
+        // Calculate keyword density
+        float keywordDensity = messageLength > 0 ? (keywordCount * 100.0f) / messageLength : 0.0f;
+        
+        // Apply context multiplier
+        float contextAwareScore = baseScore * contextMultiplier;
+        
+        return new KeywordAnalysisResult(
+            contextAwareScore,
+            keywordCount,
+            keywordDensity,
+            lengthCategory,
+            contextMultiplier,
+            contextDescription
+        );
+    }
+    
+    /**
+     * Legacy method for backward compatibility
+     */
+    private static float analyzeKeywords(String trimmedBody, String lowerBody, List<String> reasons, Context context) {
+        KeywordAnalysisResult result = analyzeKeywordsWithContext(trimmedBody, lowerBody, reasons, context);
+        return result.contextAwareScore;
     }
 
     private static float analyzePatterns(String messageBody, List<String> reasons) {
@@ -208,6 +332,26 @@ public class SpamDetector {
             }
         }
         
+        return false;
+    }
+
+    /**
+     * Get default keywords for KeywordManager
+     */
+    public static List<String> getDefaultKeywords() {
+        return Arrays.asList(TURKISH_GAMBLING_KEYWORDS);
+    }
+    
+    /**
+     * Check if keyword is in default list
+     */
+    public static boolean isDefaultKeyword(String keyword) {
+        String normalized = keyword.toLowerCase(Locale.forLanguageTag("tr"));
+        for (String defaultKeyword : TURKISH_GAMBLING_KEYWORDS) {
+            if (defaultKeyword.equals(normalized)) {
+                return true;
+            }
+        }
         return false;
     }
 

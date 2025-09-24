@@ -17,10 +17,14 @@ import com.example.testapplication.databinding.ActivityMainBinding;
 import com.example.testapplication.viewmodels.SmsViewModel;
 import com.example.testapplication.utils.PermissionHelper;
 import com.example.testapplication.utils.SmsHelper;
+import com.example.testapplication.utils.KeywordManager;
 import com.example.testapplication.adapters.SmsListAdapter;
 import com.example.testapplication.models.SmsMessage;
 import com.example.testapplication.dialogs.BulkDeleteDialog;
 import com.example.testapplication.repositories.SmsRepository;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.textfield.TextInputEditText;
+import com.google.android.material.textfield.TextInputLayout;
 
 import android.Manifest;
 
@@ -184,7 +188,7 @@ public class MainActivity extends AppCompatActivity {
             smsViewModel.setFilter(filter);
         });
     }
-    
+
     private void setupUI() {
         binding.enableProtectionButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -220,10 +224,7 @@ public class MainActivity extends AppCompatActivity {
         binding.fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                // TODO: Implement KeywordSettingsActivity or use alternative action
-                // Intent intent = new Intent(MainActivity.this, KeywordSettingsActivity.class);
-                // startActivity(intent);
-                showToast("🔧 Ayarlar özelliği yakında eklenecek!");
+                showCustomKeywordDialog();
             }
         });
     }
@@ -731,6 +732,188 @@ public class MainActivity extends AppCompatActivity {
 
     private void showToast(String message) {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+    }
+    
+    /**
+     * Show custom keyword management dialog
+     */
+    private void showCustomKeywordDialog() {
+        KeywordManager keywordManager = KeywordManager.getInstance(this);
+        
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this);
+        builder.setTitle("🔧 Özel Anahtar Kelimeler");
+        
+        // Create main options
+        String[] options = {
+            "➕ Yeni Kelime Ekle",
+            "📋 Mevcut Kelimeleri Görüntüle (" + keywordManager.getCustomKeywordCount() + ")",
+            "🗑️ Tüm Özel Kelimeleri Sil"
+        };
+        
+        builder.setItems(options, (dialog, which) -> {
+            switch (which) {
+                case 0:
+                    showAddKeywordDialog();
+                    break;
+                case 1:
+                    showKeywordListDialog();
+                    break;
+                case 2:
+                    showClearKeywordsConfirmation();
+                    break;
+            }
+        });
+        
+        builder.setNegativeButton("İptal", null);
+        builder.show();
+    }
+    
+    /**
+     * Show add new keyword dialog
+     */
+    private void showAddKeywordDialog() {
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this);
+        builder.setTitle("Yeni Anahtar Kelime Ekle");
+        
+        // Create input layout
+        TextInputLayout inputLayout = new TextInputLayout(this);
+        inputLayout.setHint("Anahtar kelime girin");
+        inputLayout.setBoxStyle(TextInputLayout.BOX_STYLE_OUTLINED);
+        
+        TextInputEditText editText = new TextInputEditText(inputLayout.getContext());
+        editText.setSingleLine(true);
+        inputLayout.addView(editText);
+        
+        // Set padding
+        int padding = (int) (16 * getResources().getDisplayMetrics().density);
+        inputLayout.setPadding(padding, padding, padding, 0);
+        
+        builder.setView(inputLayout);
+        
+        builder.setPositiveButton("Ekle", (dialog, which) -> {
+            String keyword = editText.getText().toString().trim();
+            addCustomKeyword(keyword);
+        });
+        
+        builder.setNegativeButton("İptal", null);
+        
+        AlertDialog dialog = builder.create();
+        dialog.show();
+        
+        // Focus on input
+        editText.requestFocus();
+    }
+    
+    /**
+     * Show existing keywords list
+     */
+    private void showKeywordListDialog() {
+        KeywordManager keywordManager = KeywordManager.getInstance(this);
+        java.util.List<String> keywords = keywordManager.getCustomKeywords();
+        
+        if (keywords.isEmpty()) {
+            showToast("Henüz özel anahtar kelime eklenmemiş");
+            return;
+        }
+        
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this);
+        builder.setTitle("Özel Anahtar Kelimeler (" + keywords.size() + ")");
+        
+        String[] keywordArray = keywords.toArray(new String[0]);
+        
+        builder.setItems(keywordArray, (dialog, which) -> {
+            String selectedKeyword = keywordArray[which];
+            showKeywordOptionsDialog(selectedKeyword);
+        });
+        
+        builder.setNegativeButton("Kapat", null);
+        builder.show();
+    }
+    
+    /**
+     * Show options for selected keyword
+     */
+    private void showKeywordOptionsDialog(String keyword) {
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this);
+        builder.setTitle("\"" + keyword + "\" için seçenekler");
+        
+        String[] options = {"🗑️ Sil", "🔙 Geri"};
+        
+        builder.setItems(options, (dialog, which) -> {
+            if (which == 0) {
+                removeCustomKeyword(keyword);
+            }
+            // which == 1 just closes dialog
+        });
+        
+        builder.show();
+    }
+    
+    /**
+     * Show confirmation for clearing all keywords
+     */
+    private void showClearKeywordsConfirmation() {
+        KeywordManager keywordManager = KeywordManager.getInstance(this);
+        int count = keywordManager.getCustomKeywordCount();
+        
+        if (count == 0) {
+            showToast("Silinecek özel kelime yok");
+            return;
+        }
+        
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this);
+        builder.setTitle("Tüm Özel Kelimeleri Sil");
+        builder.setMessage(count + " adet özel anahtar kelime kalıcı olarak silinecek.\n\nDevam etmek istiyor musunuz?");
+        
+        builder.setPositiveButton("Sil", (dialog, which) -> {
+            keywordManager.clearCustomKeywords();
+            showToast("✅ " + count + " özel kelime silindi");
+            // Refresh spam detection
+            refreshData();
+        });
+        
+        builder.setNegativeButton("İptal", null);
+        builder.show();
+    }
+    
+    /**
+     * Add new custom keyword
+     */
+    private void addCustomKeyword(String keyword) {
+        if (keyword.isEmpty()) {
+            showToast("❌ Boş kelime eklenemez");
+            return;
+        }
+        
+        if (keyword.length() < 2) {
+            showToast("❌ Kelime en az 2 karakter olmalı");
+            return;
+        }
+        
+        KeywordManager keywordManager = KeywordManager.getInstance(this);
+        
+        if (keywordManager.addKeyword(keyword)) {
+            showToast("✅ \"" + keyword + "\" eklendi");
+            // Refresh spam detection to include new keyword
+            refreshData();
+        } else {
+            showToast("❌ Kelime zaten mevcut veya geçersiz");
+        }
+    }
+    
+    /**
+     * Remove custom keyword
+     */
+    private void removeCustomKeyword(String keyword) {
+        KeywordManager keywordManager = KeywordManager.getInstance(this);
+        
+        if (keywordManager.removeKeyword(keyword)) {
+            showToast("✅ \"" + keyword + "\" silindi");
+            // Refresh spam detection
+            refreshData();
+        } else {
+            showToast("❌ Kelime silinemedi");
+        }
     }
 
     @Override
