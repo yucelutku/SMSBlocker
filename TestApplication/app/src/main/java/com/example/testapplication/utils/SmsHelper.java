@@ -264,4 +264,162 @@ public class SmsHelper {
         
         return stats;
     }
+    
+    /**
+     * Get all SMS messages without limit (for bulk operations)
+     */
+    public static List<SmsMessage> getAllMessages(Context context) {
+        return getAllSmsMessages(context, 0); // No limit
+    }
+    
+    /**
+     * Delete a single SMS message by ID
+     */
+    public static boolean deleteMessage(Context context, long messageId) {
+        if (!PermissionHelper.hasSmsPermissions(context)) {
+            Log.w(TAG, "SMS permissions not granted for deletion");
+            return false;
+        }
+        
+        try {
+            ContentResolver resolver = context.getContentResolver();
+            Uri deleteUri = Uri.parse("content://sms/" + messageId);
+            
+            int deletedRows = resolver.delete(deleteUri, null, null);
+            
+            if (deletedRows > 0) {
+                Log.d(TAG, "Successfully deleted SMS message with ID: " + messageId);
+                return true;
+            } else {
+                Log.w(TAG, "No message found with ID: " + messageId);
+                return false;
+            }
+            
+        } catch (Exception e) {
+            Log.e(TAG, "Error deleting SMS message with ID " + messageId + ": " + e.getMessage(), e);
+            return false;
+        }
+    }
+    
+    /**
+     * Bulk delete multiple SMS messages by IDs
+     */
+    public static int bulkDeleteMessages(Context context, List<Long> messageIds) {
+        if (!PermissionHelper.hasSmsPermissions(context)) {
+            Log.w(TAG, "SMS permissions not granted for bulk deletion");
+            return 0;
+        }
+        
+        int deletedCount = 0;
+        ContentResolver resolver = context.getContentResolver();
+        
+        for (Long messageId : messageIds) {
+            try {
+                Uri deleteUri = Uri.parse("content://sms/" + messageId);
+                int deletedRows = resolver.delete(deleteUri, null, null);
+                
+                if (deletedRows > 0) {
+                    deletedCount++;
+                }
+                
+            } catch (Exception e) {
+                Log.e(TAG, "Error deleting message ID " + messageId + ": " + e.getMessage());
+            }
+        }
+        
+        Log.d(TAG, "Bulk deleted " + deletedCount + " out of " + messageIds.size() + " messages");
+        return deletedCount;
+    }
+    
+    /**
+     * Delete all SMS messages of specific type
+     */
+    public static int deleteMessagesByType(Context context, int type) {
+        if (!PermissionHelper.hasSmsPermissions(context)) {
+            Log.w(TAG, "SMS permissions not granted for type deletion");
+            return 0;
+        }
+        
+        try {
+            ContentResolver resolver = context.getContentResolver();
+            String selection = "type = ?";
+            String[] selectionArgs = {String.valueOf(type)};
+            
+            int deletedRows = resolver.delete(SMS_URI, selection, selectionArgs);
+            Log.d(TAG, "Deleted " + deletedRows + " messages of type " + type);
+            return deletedRows;
+            
+        } catch (Exception e) {
+            Log.e(TAG, "Error deleting messages by type " + type + ": " + e.getMessage(), e);
+            return 0;
+        }
+    }
+    
+    /**
+     * Delete messages from specific sender
+     */
+    public static int deleteMessagesBySender(Context context, String senderAddress) {
+        if (!PermissionHelper.hasSmsPermissions(context)) {
+            Log.w(TAG, "SMS permissions not granted for sender deletion");
+            return 0;
+        }
+        
+        try {
+            ContentResolver resolver = context.getContentResolver();
+            String selection = "address = ?";
+            String[] selectionArgs = {senderAddress};
+            
+            int deletedRows = resolver.delete(SMS_URI, selection, selectionArgs);
+            Log.d(TAG, "Deleted " + deletedRows + " messages from sender: " + senderAddress);
+            return deletedRows;
+            
+        } catch (Exception e) {
+            Log.e(TAG, "Error deleting messages from sender " + senderAddress + ": " + e.getMessage(), e);
+            return 0;
+        }
+    }
+    
+    /**
+     * Delete messages in date range
+     */
+    public static int deleteMessagesByDateRange(Context context, long startDate, long endDate) {
+        if (!PermissionHelper.hasSmsPermissions(context)) {
+            Log.w(TAG, "SMS permissions not granted for date range deletion");
+            return 0;
+        }
+        
+        try {
+            ContentResolver resolver = context.getContentResolver();
+            String selection = "date >= ? AND date <= ?";
+            String[] selectionArgs = {String.valueOf(startDate), String.valueOf(endDate)};
+            
+            int deletedRows = resolver.delete(SMS_URI, selection, selectionArgs);
+            Log.d(TAG, "Deleted " + deletedRows + " messages in date range");
+            return deletedRows;
+            
+        } catch (Exception e) {
+            Log.e(TAG, "Error deleting messages by date range: " + e.getMessage(), e);
+            return 0;
+        }
+    }
+    
+    /**
+     * Check if SMS content provider is available
+     */
+    public static boolean isSmsProviderAvailable(Context context) {
+        try {
+            ContentResolver resolver = context.getContentResolver();
+            Cursor cursor = resolver.query(SMS_URI, new String[]{"_id"}, null, null, "date DESC LIMIT 1");
+            
+            if (cursor != null) {
+                cursor.close();
+                return true;
+            }
+            
+        } catch (Exception e) {
+            Log.e(TAG, "SMS provider not available: " + e.getMessage());
+        }
+        
+        return false;
+    }
 }

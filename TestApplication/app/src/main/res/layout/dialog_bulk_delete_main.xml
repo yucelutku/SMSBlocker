@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <!-- Header Text -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Toplu silme seçeneklerini belirleyin:"
+        android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
+        android:textColor="?attr/colorOnSurface"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Main Action Buttons -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_delete_all"
+        style="@style/Widget.Material3.Button.TonalButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Tümünü Sil"
+        android:textColor="?attr/colorError"
+        app:backgroundTint="?attr/colorErrorContainer"
+        app:icon="@android:drawable/ic_menu_delete"
+        app:iconTint="?attr/colorError"
+        android:layout_marginBottom="8dp" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_delete_spam"
+        style="@style/Widget.Material3.Button.TonalButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Spam Mesajları Sil"
+        android:textColor="?attr/colorError"
+        app:backgroundTint="?attr/colorErrorContainer"
+        app:icon="@android:drawable/ic_delete"
+        app:iconTint="?attr/colorError"
+        android:layout_marginBottom="8dp" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_delete_normal"
+        style="@style/Widget.Material3.Button.TonalButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Normal Mesajları Sil"
+        android:textColor="?attr/colorError"
+        app:backgroundTint="?attr/colorErrorContainer"
+        app:icon="@android:drawable/ic_delete"
+        app:iconTint="?attr/colorError"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Divider -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="?attr/colorOutlineVariant"
+        android:layout_marginVertical="8dp" />
+
+    <!-- Advanced Options Button -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_advanced_options"
+        style="@style/Widget.Material3.Button.OutlinedButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/action_advanced_options"
+        app:icon="@android:drawable/ic_menu_more"
+        app:iconTint="?attr/colorPrimary"
+        android:layout_marginTop="8dp" />
+
+    <!-- Info Text -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="⚠️ Silme işlemleri geri alınamaz. Lütfen dikkatli seçim yapın."
+        android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:layout_marginTop="12dp"
+        android:gravity="center" />
+
+</LinearLayout>

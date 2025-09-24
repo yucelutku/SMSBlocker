@@ -19,6 +19,8 @@ import com.example.testapplication.utils.PermissionHelper;
 import com.example.testapplication.utils.SmsHelper;
 import com.example.testapplication.adapters.SmsListAdapter;
 import com.example.testapplication.models.SmsMessage;
+import com.example.testapplication.dialogs.BulkDeleteDialog;
+import com.example.testapplication.repositories.SmsRepository;
 
 import android.Manifest;
 
@@ -27,6 +29,8 @@ public class MainActivity extends AppCompatActivity {
     private ActivityMainBinding binding;
     private SmsViewModel smsViewModel;
     private SmsListAdapter smsAdapter;
+    private BulkDeleteDialog bulkDeleteDialog;
+    private SmsRepository smsRepository;
     private static final int SMS_PERMISSION_REQUEST_CODE = 100;
     private static final int DEFAULT_SMS_APP_REQUEST_CODE = 101;
     private static final int CONTACTS_PERMISSION_REQUEST_CODE = 102;
@@ -48,6 +52,7 @@ public class MainActivity extends AppCompatActivity {
         setupFilterChips();
         setupObservers();
         setupAutoRefresh();
+        setupBulkDelete();
         checkPermissions();
     }
 
@@ -124,6 +129,30 @@ public class MainActivity extends AppCompatActivity {
             getSupportActionBar().setDisplayShowTitleEnabled(true);
         }
     }
+    
+    @Override
+    public boolean onCreateOptionsMenu(android.view.Menu menu) {
+        getMenuInflater().inflate(R.menu.main_menu, menu);
+        return true;
+    }
+    
+    @Override
+    public boolean onOptionsItemSelected(android.view.MenuItem item) {
+        int id = item.getItemId();
+        
+        if (id == R.id.action_bulk_delete) {
+            if (bulkDeleteDialog != null) {
+                bulkDeleteDialog.showMainDialog();
+            }
+            return true;
+        } else if (id == R.id.action_refresh) {
+            refreshData();
+            showToast("📥 Mesajlar yenileniyor...");
+            return true;
+        }
+        
+        return super.onOptionsItemSelected(item);
+    }
 
     private void setupFilterChips() {
         binding.filterChipGroup.setOnCheckedStateChangeListener((group, checkedIds) -> {
@@ -183,8 +212,197 @@ public class MainActivity extends AppCompatActivity {
         binding.fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Intent intent = new Intent(MainActivity.this, KeywordSettingsActivity.class);
-                startActivity(intent);
+                // TODO: Implement KeywordSettingsActivity or use alternative action
+                // Intent intent = new Intent(MainActivity.this, KeywordSettingsActivity.class);
+                // startActivity(intent);
+                showToast("🔧 Ayarlar özelliği yakında eklenecek!");
+            }
+        });
+    }
+    
+    private void setupBulkDelete() {
+        smsRepository = SmsRepository.getInstance(this);
+        bulkDeleteDialog = new BulkDeleteDialog(this, new BulkDeleteDialog.BulkDeleteListener() {
+            @Override
+            public void onDeleteAll() {
+                performBulkDelete("all");
+            }
+            
+            @Override
+            public void onDeleteSpam() {
+                performBulkDelete("spam");
+            }
+            
+            @Override
+            public void onDeleteNormal() {
+                performBulkDelete("normal");
+            }
+            
+            @Override
+            public void onDeleteBySender(String phoneNumber) {
+                performBulkDeleteBySender(phoneNumber);
+            }
+            
+            @Override
+            public void onDeleteByDateRange(long startDate, long endDate) {
+                performBulkDeleteByDateRange(startDate, endDate);
+            }
+            
+            @Override
+            public void onDeleteByDateRangeAndType(long startDate, long endDate, boolean isSpam) {
+                performBulkDeleteByDateRangeAndType(startDate, endDate, isSpam);
+            }
+        }, smsRepository);
+    }
+    
+    private void performBulkDelete(String type) {
+        if (!PermissionHelper.hasSmsPermissions(this)) {
+            showToast("SMS izinleri gerekli");
+            return;
+        }
+        
+        bulkDeleteDialog.showProgressDialog();
+        
+        SmsRepository.BulkOperationCallback callback = new SmsRepository.BulkOperationCallback() {
+            @Override
+            public void onProgress(int current, int total) {
+                runOnUiThread(() -> {
+                    bulkDeleteDialog.updateProgress(current, total);
+                });
+            }
+            
+            @Override
+            public void onCompleted(int deletedCount) {
+                runOnUiThread(() -> {
+                    bulkDeleteDialog.hideDialog();
+                    showToast(getString(R.string.delete_completed, deletedCount));
+                    refreshData(); // Refresh the message list
+                });
+            }
+            
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    bulkDeleteDialog.hideDialog();
+                    showToast("Hata: " + error);
+                });
+            }
+        };
+        
+        switch (type) {
+            case "all":
+                smsRepository.deleteAllMessages(callback);
+                break;
+            case "spam":
+                smsRepository.deleteAllSpamMessages(callback);
+                break;
+            case "normal":
+                smsRepository.deleteAllNormalMessages(callback);
+                break;
+        }
+    }
+    
+    private void performBulkDeleteBySender(String phoneNumber) {
+        if (!PermissionHelper.hasSmsPermissions(this)) {
+            showToast("SMS izinleri gerekli");
+            return;
+        }
+        
+        bulkDeleteDialog.showProgressDialog();
+        
+        smsRepository.deleteMessagesBySender(phoneNumber, new SmsRepository.BulkOperationCallback() {
+            @Override
+            public void onProgress(int current, int total) {
+                runOnUiThread(() -> {
+                    bulkDeleteDialog.updateProgress(current, total);
+                });
+            }
+            
+            @Override
+            public void onCompleted(int deletedCount) {
+                runOnUiThread(() -> {
+                    bulkDeleteDialog.hideDialog();
+                    showToast(getString(R.string.delete_completed, deletedCount));
+                    refreshData();
+                });
+            }
+            
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    bulkDeleteDialog.hideDialog();
+                    showToast("Hata: " + error);
+                });
+            }
+        });
+    }
+    
+    private void performBulkDeleteByDateRange(long startDate, long endDate) {
+        if (!PermissionHelper.hasSmsPermissions(this)) {
+            showToast("SMS izinleri gerekli");
+            return;
+        }
+        
+        bulkDeleteDialog.showProgressDialog();
+        
+        smsRepository.deleteMessagesByDateRange(startDate, endDate, new SmsRepository.BulkOperationCallback() {
+            @Override
+            public void onProgress(int current, int total) {
+                runOnUiThread(() -> {
+                    bulkDeleteDialog.updateProgress(current, total);
+                });
+            }
+            
+            @Override
+            public void onCompleted(int deletedCount) {
+                runOnUiThread(() -> {
+                    bulkDeleteDialog.hideDialog();
+                    showToast(getString(R.string.delete_completed, deletedCount));
+                    refreshData();
+                });
+            }
+            
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    bulkDeleteDialog.hideDialog();
+                    showToast("Hata: " + error);
+                });
+            }
+        });
+    }
+    
+    private void performBulkDeleteByDateRangeAndType(long startDate, long endDate, boolean isSpam) {
+        if (!PermissionHelper.hasSmsPermissions(this)) {
+            showToast("SMS izinleri gerekli");
+            return;
+        }
+        
+        bulkDeleteDialog.showProgressDialog();
+        
+        smsRepository.deleteMessagesByDateRangeAndType(startDate, endDate, isSpam, new SmsRepository.BulkOperationCallback() {
+            @Override
+            public void onProgress(int current, int total) {
+                runOnUiThread(() -> {
+                    bulkDeleteDialog.updateProgress(current, total);
+                });
+            }
+            
+            @Override
+            public void onCompleted(int deletedCount) {
+                runOnUiThread(() -> {
+                    bulkDeleteDialog.hideDialog();
+                    showToast(getString(R.string.delete_completed, deletedCount));
+                    refreshData();
+                });
+            }
+            
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    bulkDeleteDialog.hideDialog();
+                    showToast("Hata: " + error);
+                });
             }
         });
     }

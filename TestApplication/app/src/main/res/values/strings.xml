@@ -4,4 +4,89 @@
     <string name="filter_all">Tümü</string>
     <string name="filter_spam">Spam Mesajlar</string>
     <string name="filter_normal">Normal Mesajlar</string>
+    
+    <!-- Bulk Delete Operations -->
+    <string name="bulk_delete_all">Tümünü Sil (%d)</string>
+    <string name="bulk_delete_spam">Spam Sil (%d)</string>
+    <string name="bulk_delete_normal">Normal Sil (%d)</string>
+    <string name="bulk_delete_sender" formatted="false">%s\'den Gelen Mesajları Sil (%d)</string>
+    <string name="bulk_delete_date_range" formatted="false">%s - %s Arası Mesajları Sil (%d)</string>
+    
+    <!-- Advanced Delete Options -->
+    <string name="advanced_delete_options">Gelişmiş Silme Seçenekleri</string>
+    <string name="delete_by_sender">Gönderici Bazlı Silme</string>
+    <string name="delete_by_date_range">Tarih Aralığı Silme</string>
+    <string name="select_sender">Gönderici Seç</string>
+    <string name="select_date_range">Tarih Aralığı Seç</string>
+    
+    <!-- Date Range Options -->
+    <string name="date_range_7_days">Son 7 Gün</string>
+    <string name="date_range_30_days">Son 30 Gün</string>
+    <string name="date_range_3_months">Son 3 Ay</string>
+    <string name="date_range_6_months">Son 6 Ay</string>
+    <string name="date_range_all_time">Tüm Geçmiş</string>
+    <string name="date_range_custom">Özel Tarih Aralığı</string>
+    
+    <!-- Combined Options -->
+    <string name="delete_spam_in_range">Bu Aralıktaki Spam Mesajları Sil</string>
+    <string name="delete_normal_in_range">Bu Aralıktaki Normal Mesajları Sil</string>
+    
+    <!-- Progress Indicators -->
+    <string name="progress_deleting" formatted="false">Siliniyor... (%d/%d)</string>
+    <string name="progress_analyzing">Analiz ediliyor...</string>
+    <string name="progress_loading_senders">Gönderenler yükleniyor...</string>
+    <string name="progress_calculating">Hesaplanıyor...</string>
+    
+    <!-- Completion Messages -->
+    <string name="delete_completed">%d mesaj başarıyla silindi</string>
+    <string name="delete_completed_details" formatted="false">%d mesaj silindi\n%d hata ile karşılaşıldı</string>
+    <string name="no_messages_to_delete">Silinecek mesaj bulunamadı</string>
+    
+    <!-- Confirmation Dialogs -->
+    <string name="confirm_delete_all">Tüm Mesajları Sil</string>
+    <string name="confirm_delete_all_message">%d mesajın tamamı kalıcı olarak silinecek. Bu işlem geri alınamaz.\n\nDevam etmek istiyor musunuz?</string>
+    <string name="confirm_delete_spam">Spam Mesajları Sil</string>
+    <string name="confirm_delete_spam_message">%d spam mesaj kalıcı olarak silinecek.\n\nDevam etmek istiyor musunuz?</string>
+    <string name="confirm_delete_normal">Normal Mesajları Sil</string>
+    <string name="confirm_delete_normal_message">%d normal mesaj kalıcı olarak silinecek. Bu işlem geri alınamaz.\n\nDevam etmek istiyor musunuz?</string>
+    <string name="confirm_delete_sender">Gönderici Mesajlarını Sil</string>
+    <string name="confirm_delete_sender_message" formatted="false">%s adresinden gelen %d mesaj kalıcı olarak silinecek.\n\nDevam etmek istiyor musunuz?</string>
+    <string name="confirm_delete_date_range">Tarih Aralığı Mesajlarını Sil</string>
+    <string name="confirm_delete_date_range_message" formatted="false">%s - %s tarihleri arasındaki %d mesaj kalıcı olarak silinecek.\n\nDevam etmek istiyor musunuz?</string>
+    
+    <!-- Sender Information -->
+    <string name="sender_info_format" formatted="false">%s\n%d mesaj (%d spam - %%%.0f)</string>
+    <string name="sender_unknown">Bilinmeyen Gönderen</string>
+    <string name="frequent_senders">Sık Mesaj Gönderenler</string>
+    <string name="no_frequent_senders">Henüz mesaj geçmişi bulunamadı</string>
+    
+    <!-- Error Messages -->
+    <string name="error_bulk_delete_failed">Toplu silme işlemi başarısız: %s</string>
+    <string name="error_permission_denied">SMS silme izni reddedildi</string>
+    <string name="error_no_messages">Silinecek mesaj bulunamadı</string>
+    <string name="error_operation_cancelled">İşlem kullanıcı tarafından iptal edildi</string>
+    
+    <!-- Action Buttons -->
+    <string name="action_delete">Sil</string>
+    <string name="action_cancel">İptal</string>
+    <string name="action_select_all">Tümünü Seç</string>
+    <string name="action_clear_selection">Seçimi Temizle</string>
+    <string name="action_advanced_options">Gelişmiş Seçenekler</string>
+    
+    <!-- Date Picker -->
+    <string name="select_start_date">Başlangıç Tarihi Seç</string>
+    <string name="select_end_date">Bitiş Tarihi Seç</string>
+    <string name="date_format">dd/MM/yyyy</string>
+    
+    <!-- Statistics -->
+    <string name="stats_total_messages">Toplam: %d mesaj</string>
+    <string name="stats_spam_messages">Spam: %d mesaj</string>
+    <string name="stats_normal_messages">Normal: %d mesaj</string>
+    <string name="stats_selected_count">Seçilen: %d mesaj</string>
+    
+    <!-- Accessibility -->
+    <string name="accessibility_bulk_delete">Toplu silme seçenekleri</string>
+    <string name="accessibility_progress_bar">Silme işlemi ilerlemesi</string>
+    <string name="accessibility_sender_selection">Gönderen seçimi</string>
+    
 </resources>
