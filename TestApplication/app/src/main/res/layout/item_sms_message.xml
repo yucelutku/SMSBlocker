@@ -177,8 +177,6 @@
             app:iconSize="16dp"
             tools:visibility="visible" />
 
-        </LinearLayout>
-
     </LinearLayout>
 
 </com.google.android.material.card.MaterialCardView>

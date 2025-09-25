@@ -778,7 +778,7 @@ public class MainActivity extends AppCompatActivity {
         // Create input layout
         TextInputLayout inputLayout = new TextInputLayout(this);
         inputLayout.setHint("Anahtar kelime girin");
-        inputLayout.setBoxStyle(TextInputLayout.BOX_STYLE_OUTLINED);
+        // Note: BOX_STYLE_OUTLINED requires Material Components theme
         
         TextInputEditText editText = new TextInputEditText(inputLayout.getContext());
         editText.setSingleLine(true);

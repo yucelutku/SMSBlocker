@@ -368,19 +368,4 @@ public class SpamDetector {
             return "Possible Spam";
         }
     }
-    
-    public static List<String> getDefaultKeywords() {
-        return Arrays.asList(TURKISH_GAMBLING_KEYWORDS);
-    }
-    
-    public static boolean isDefaultKeyword(String keyword) {
-        if (keyword == null) return false;
-        String lower = keyword.toLowerCase(new Locale("tr", "TR"));
-        for (String defaultKeyword : TURKISH_GAMBLING_KEYWORDS) {
-            if (defaultKeyword.toLowerCase(new Locale("tr", "TR")).equals(lower)) {
-                return true;
-            }
-        }
-        return false;
-    }
 }
