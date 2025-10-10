@@ -8,6 +8,7 @@ import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
 import com.example.testapplication.models.SmsMessage;
+import com.example.testapplication.models.SpamSender;
 import com.example.testapplication.utils.SmsHelper;
 
 import java.util.ArrayList;
@@ -33,6 +34,9 @@ public class SmsRepository {
     private final MutableLiveData<SmsHelper.SmsStatistics> statistics = new MutableLiveData<>();
     private final MutableLiveData<Boolean> isLoading = new MutableLiveData<>();
     private final MutableLiveData<String> errorMessage = new MutableLiveData<>();
+    
+    // Spam Senders LiveData
+    private final MutableLiveData<List<SpamSender>> spamSenders = new MutableLiveData<>();
 
     private SmsRepository(Context context) {
         this.context = context.getApplicationContext();
@@ -74,6 +78,10 @@ public class SmsRepository {
 
     public LiveData<String> getErrorMessage() {
         return errorMessage;
+    }
+
+    public LiveData<List<SpamSender>> getSpamSenders() {
+        return spamSenders;
     }
 
     // Data loading methods
@@ -206,6 +214,7 @@ public class SmsRepository {
         loadAllMessages();
         loadInboxMessages();
         loadSpamMessages();
+        loadSpamSenders();
     }
 
     private void setLoading(boolean loading) {
@@ -762,6 +771,180 @@ public class SmsRepository {
             if (totalCount == 0) return 0f;
             return (float) spamCount / totalCount * 100f;
         }
+    }
+
+    // ==================== SPAM SENDER OPERATIONS (Step 1) ====================
+    
+    /**
+     * Load spam senders - groups messages by sender and filters those with >50% spam rate
+     */
+    public void loadSpamSenders() {
+        setLoading(true);
+        clearError();
+        
+        executor.execute(() -> {
+            try {
+                List<SpamSender> senders = getSpamSendersInternal();
+                postResult(spamSenders, senders);
+                
+            } catch (Exception e) {
+                postError("Failed to load spam senders: " + e.getMessage());
+            } finally {
+                setLoading(false);
+            }
+        });
+    }
+    
+    /**
+     * Internal method to generate spam senders list from all messages
+     */
+    private List<SpamSender> getSpamSendersInternal() {
+        List<SmsMessage> allMessages = SmsHelper.getAllMessages(context);
+        Map<String, SpamSenderData> senderDataMap = new HashMap<>();
+        
+        // Group messages by sender and collect statistics
+        for (SmsMessage message : allMessages) {
+            String phoneNumber = message.address != null ? message.address : "Unknown";
+            SpamSenderData data = senderDataMap.get(phoneNumber);
+            
+            if (data == null) {
+                data = new SpamSenderData(phoneNumber);
+                senderDataMap.put(phoneNumber, data);
+            }
+            
+            data.totalCount++;
+            if (message.isSpam) {
+                data.spamCount++;
+                // Keep the most recent spam message as sample
+                if (data.sampleSpamMessage == null || message.date > data.lastMessageDate) {
+                    data.sampleSpamMessage = message.body;
+                }
+            }
+            
+            // Update last message date
+            if (message.date > data.lastMessageDate) {
+                data.lastMessageDate = message.date;
+            }
+        }
+        
+        // Convert to SpamSender objects and filter by spam percentage
+        List<SpamSender> spamSenderList = new ArrayList<>();
+        for (SpamSenderData data : senderDataMap.values()) {
+            float spamPercentage = data.totalCount > 0 ? 
+                ((float) data.spamCount / data.totalCount) * 100.0f : 0.0f;
+            
+            // Only include senders with >50% spam rate
+            if (spamPercentage >= 50.0f) {
+                SpamSender spamSender = new SpamSender(
+                    data.phoneNumber,
+                    null, // Contact name to be populated later
+                    data.totalCount,
+                    data.spamCount,
+                    data.sampleSpamMessage,
+                    data.lastMessageDate
+                );
+                spamSenderList.add(spamSender);
+            }
+        }
+        
+        // Sort by spam count (highest first)
+        Collections.sort(spamSenderList, (a, b) -> Integer.compare(b.spamMessages, a.spamMessages));
+        
+        return spamSenderList;
+    }
+    
+    /**
+     * Get spam senders with different sorting options
+     */
+    public void loadSpamSendersSorted(SpamSenderSortType sortType, RepositoryCallback<List<SpamSender>> callback) {
+        executor.execute(() -> {
+            try {
+                List<SpamSender> senders = getSpamSendersInternal();
+                
+                // Apply sorting
+                switch (sortType) {
+                    case MOST_SPAM:
+                        Collections.sort(senders, (a, b) -> Integer.compare(b.spamMessages, a.spamMessages));
+                        break;
+                    case MOST_MESSAGES:
+                        Collections.sort(senders, (a, b) -> Integer.compare(b.totalMessages, a.totalMessages));
+                        break;
+                    case RECENT_ACTIVITY:
+                        Collections.sort(senders, (a, b) -> Long.compare(b.lastMessageDate, a.lastMessageDate));
+                        break;
+                    case HIGHEST_SPAM_RATE:
+                        Collections.sort(senders, (a, b) -> Float.compare(b.spamPercentage, a.spamPercentage));
+                        break;
+                }
+                
+                postCallback(callback, senders);
+                
+            } catch (Exception e) {
+                postError("Failed to load sorted spam senders: " + e.getMessage());
+                postCallback(callback, new ArrayList<>());
+            }
+        });
+    }
+    
+    /**
+     * Get spam sender by phone number
+     */
+    public void getSpamSenderByPhoneNumber(String phoneNumber, RepositoryCallback<SpamSender> callback) {
+        executor.execute(() -> {
+            try {
+                List<SpamSender> allSpamSenders = getSpamSendersInternal();
+                SpamSender foundSender = null;
+                
+                for (SpamSender sender : allSpamSenders) {
+                    if (phoneNumber.equals(sender.phoneNumber)) {
+                        foundSender = sender;
+                        break;
+                    }
+                }
+                
+                postCallback(callback, foundSender);
+                
+            } catch (Exception e) {
+                postError("Failed to get spam sender: " + e.getMessage());
+                postCallback(callback, null);
+            }
+        });
+    }
+    
+    /**
+     * Get count of spam senders
+     */
+    public void getSpamSenderCount(RepositoryCallback<Integer> callback) {
+        executor.execute(() -> {
+            try {
+                List<SpamSender> senders = getSpamSendersInternal();
+                postCallback(callback, senders.size());
+                
+            } catch (Exception e) {
+                postCallback(callback, 0);
+            }
+        });
+    }
+    
+    // Helper class for collecting sender data
+    private static class SpamSenderData {
+        String phoneNumber;
+        int totalCount = 0;
+        int spamCount = 0;
+        String sampleSpamMessage = null;
+        long lastMessageDate = 0;
+        
+        SpamSenderData(String phoneNumber) {
+            this.phoneNumber = phoneNumber;
+        }
+    }
+    
+    // Enum for sorting spam senders
+    public enum SpamSenderSortType {
+        MOST_SPAM,
+        MOST_MESSAGES,
+        RECENT_ACTIVITY,
+        HIGHEST_SPAM_RATE
     }
 
     // Callback interface for async operations
