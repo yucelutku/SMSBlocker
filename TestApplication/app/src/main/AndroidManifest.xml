@@ -11,6 +11,10 @@
     
     <!-- Contacts Permission for displaying sender names -->
     <uses-permission android:name="android.permission.READ_CONTACTS" />
+    
+    <!-- Blocked Numbers API permissions for Step 2 -->
+    <uses-permission android:name="android.permission.READ_BLOCKED_NUMBERS" />
+    <uses-permission android:name="android.permission.WRITE_BLOCKED_NUMBERS" />
 
     <application
         android:allowBackup="true"
